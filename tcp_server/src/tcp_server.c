@@ -1,9 +1,9 @@
 /*
  ============================================================================
- Name        : test1.c
- Author      : 
+ Name        : tcp_server.c
+ Author      : Karel Seeuwen
  Version     :
- Copyright   : Your copyright notice
+ Copyright   : 
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
@@ -11,18 +11,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(void) {
-	puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
+//int poll_server(void);
+int thread_server(void);
+int udp_server_main(void);
 
-	void http_get_main(void);
-	//http_get_main();
 
-	void command_c1(void);
-	//command_c1();
+int main(void)
+{
 
-	void test_push(void);
-	test_push();
+	//poll_server();
 
+	thread_server();
+	//udp_server_main();
 
 	return EXIT_SUCCESS;
 }
+
+//https://github.com/weboutin/simple-socket-server/

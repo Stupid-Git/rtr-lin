@@ -1,9 +1,9 @@
 /*
  ============================================================================
- Name        : test1.c
- Author      : 
+ Name        : rtr500bw.c
+ Author      : Karel Seeuwen
  Version     :
- Copyright   : Your copyright notice
+ Copyright   : 
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
@@ -13,16 +13,5 @@
 
 int main(void) {
 	puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
-
-	void http_get_main(void);
-	//http_get_main();
-
-	void command_c1(void);
-	//command_c1();
-
-	void test_push(void);
-	test_push();
-
-
 	return EXIT_SUCCESS;
 }
