@@ -1,6 +1,6 @@
 
+#include "_r500_config.h"
 
-//
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
@@ -10,69 +10,23 @@
 #include <string.h>
 #include <pthread.h>
 
+#include <stdbool.h>
+
+#include "random_stuff.h"
+#include "file_structs.h"
+
+#include "r500_defs.h"
+
 //#define PORT 9990
 #define PORT 62500 //karel
 #define SIZE 1024
 
 
 
-#define _just_Printf printf
 
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-static void DumpHex(int addText, const void* data, size_t size);
-static void DumpHex(int addText, const void* data, size_t size)
-{
-    char ascii[17];
-    size_t i, j;
-    ascii[16] = '\0';
-    for (i = 0; i < size; ++i) {
-        _just_Printf("%02X ", ((unsigned char*)data)[i]);
-        if(addText != 0)
-        {
-            if (((unsigned char *) data)[i] >= ' ' && ((unsigned char *) data)[i] <= '~')
-            {
-                ascii[i % 16] = ((unsigned char *) data)[i];
-            }
-            else
-            {
-                ascii[i % 16] = '.';
-            }
-            if ((i + 1) % 8 == 0 || i + 1 == size)
-            {
-                _just_Printf (" ");
-                if ((i + 1) % 16 == 0)
-                {
-                    _just_Printf ("|  %s \r\n", ascii);
-                }
-                else if (i + 1 == size)
-                {
-                    ascii[(i + 1) % 16] = '\0';
-                    if ((i + 1) % 16 <= 8)
-                    {
-                        _just_Printf (" ");
-                    }
-                    for (j = (i + 1) % 16; j < 16; ++j)
-                    {
-                        _just_Printf ("   ");
-                    }
-                    _just_Printf ("|  %s \r\n", ascii);
-                }
-            }
-        }
-    }
-    if(addText == 0)
-    {
-        _just_Printf("\r\n");
-    }
-}
-
-void PrintHex( char* banner, uint8_t* pData, int len)
-{
-    _just_Printf("%s\r\n", banner);
-    DumpHex( 1, pData, (size_t)len);
-}
 
 
 static void print_T2(uint8_t *buf, int buflen);
@@ -241,50 +195,164 @@ static int wait_client(int server_socket)
 #define CMD_LOGIN       "login"
 #define CMD_OK          "OK"
 
-static void *socket_handler(void *socket_desc)
+#define TBUF_SIZE       (4096+128*4)
+static char      tcp_rxb[TBUF_SIZE];
+static uint32_t     tcp_receive_length;
+
+/**
+ * UDP後の、login passwordの照合処理
+ * @return 0 常に0
+ * @bug 返値は常に0(false)
+ */
+int check_login(int client_socket)
 {
+    //bool ret;
+    //int32_t status;
+    int retry;
+    uint32_t i;
+    uint32_t Size;
+    //uint32_t rtn = 0;
+    uint32_t rtn = 1;       // Pass NG  // 2022.10.31
 
-    int client_socket = *(int *)socket_desc;
 
-    char buf[SIZE];
+    Printf(" tcp send [login] \r\n");
+    // send 'login'
+    if( write(client_socket, CMD_LOGIN, 5) < 0)
+   	{
+    	rtn = -1; // failure
+    	goto L_Exit;
+   	}
 
-    write(client_socket, CMD_LOGIN, 5);
-
-    while (1)
+    retry = 0;
+	while (retry <= 3)
     {
-        int bufSize = read(client_socket, buf, SIZE - 1);
-        printf("bufsize: %d\n", bufSize);
-        if (bufSize == 0)
+        // NEED to use poll NEED a time out
+        //status = tcp_receive(WAIT_1MIN);  6000は、長すぎる
+        //status = tcp_receive(100);
+        tcp_receive_length = read(client_socket, tcp_rxb, sizeof(tcp_rxb));
+        if (tcp_receive_length < 0)
+        {
+        	printf("Got -1 for bufSize (Disconnected?) - Exiting\n");
+        	rtn = -1; // failure
+        	goto L_Exit;
+            //break;
+        }
+
+        if (tcp_receive_length == 0)
         {
         	continue;
             //break;
         }
-        if (bufSize == -1)
-        {
-        	printf("Got -1 for bufSize (Disconnected?) - Exiting\n");
-            break;
+        printf("check_login: tcp_receive_length: %d\n", tcp_receive_length);
+
+        tcp_rxb[tcp_receive_length] = '\0';
+        //printf("From client: %s\n", tcp_rxb);
+        for(i = 0; i < tcp_receive_length; i++){
+            Printf("%02X ", tcp_rxb[i]);
         }
-        buf[bufSize] = '\0';
-        printf("From client: %s\n", buf);
-        print_T2((uint8_t*)buf, bufSize);
 
-        write(client_socket, "OK", 2);
-        //write(client_socket, buf, bufSize);
-
-        if (strncmp(buf, "end", 3) == 0)
+        if(1)
         {
-        	printf("Got End - Exiting\n");
-            break;
+            // NetPass照合
+
+            Size = tcp_receive_length - 1;
+            if(Size >=6 && Size <=26)
+	        {
+            	strcpy(my_config.network.NetPass, "111111"); //Debug
+
+                if(Memcmp(my_config.network.NetPass, tcp_rxb, (int)strlen(my_config.network.NetPass) ,(int)Size) == 0){
+                    Printf("\r\nPassCode OK !!\r\n");
+                    // send 'OK'
+                    if( write(client_socket, CMD_OK, 2) < 0)
+                   	{
+                    	rtn = -1; // failure
+                    	goto L_Exit;
+                   	}
+                    rtn = 0;        // Pass OK  // 2022.10.31
+                    break;
+                }
+                else
+                {
+                    Printf("\r\nPassCode Error !!\r\n");
+                    Printf(" tcp send [login] \n");
+                    if( write(client_socket, CMD_LOGIN, 5) < 0)
+                   	{
+                    	rtn = -1; // failure
+                    	goto L_Exit;
+                   	}
+                    rtn = 1;        // Pass NG
+                    break;
+                }
+            }
+
+        }
+        retry++;
+    }
+L_Exit:;
+	printf("check_login: exit rtn = %d\n", rtn);
+    return (rtn);
+}
+
+static void *tcp_thread(void *socket_desc);
+static void *tcp_thread(void *socket_desc)
+{
+	int rtn = 0;
+    int client_socket = *(int *)socket_desc;
+    //char buf[SIZE];
+
+    int log_in = 0;
+
+    Printf("--------------------------------------\n");
+    Printf("TCP Connect !!!! \n");
+    Printf("client_socket = %d\n", client_socket);
+    // login send and password check
+    if(log_in == 0)
+    {
+        rtn = check_login(client_socket);
+        if(rtn == 0){
+            log_in = 1;
+            Printf("login end \r\n");
+        }
+        else
+        {
+            //PutLog(LOG_LAN, "TCP Login Error");
+            //DebugLog( LOG_DBG, "TCP Login Error");
+            Printf("login error \r\n");
+            goto L_Exit_Thread;
         }
     }
+
+    while (1)
+    {
+    	//ret = tcp_cmd_recv();
+        tcp_receive_length = read(client_socket, tcp_rxb, sizeof(tcp_rxb));
+        if (tcp_receive_length == 0)
+        {
+        	continue;
+            //break;
+        }
+        if (tcp_receive_length == -1)
+        {
+        	printf("Got -1 for tcp_receive_length (Disconnected?) - Exiting\n");
+            break;
+        }
+
+        printf("tcp_thread: tcp_receive_length: %d\n", tcp_receive_length);
+
+        print_T2((uint8_t*)tcp_rxb, tcp_receive_length);
+
+    }
+
+    L_Exit_Thread: ;
     close(client_socket);
 
-	printf("Exited\n");
+	printf("tcp_thread: Exited\n");
     return 0;
 }
 
-int thread_server(void);
-int thread_server(void)
+
+static void *tcp_connection_thread(void *socket_desc);
+static void *tcp_connection_thread(void *socket_desc)
 {
     int server_socket = creat_socket();
 
@@ -292,11 +360,26 @@ int thread_server(void)
     {
         int client_socket = wait_client(server_socket);
         pthread_t id;
-        pthread_create(&id, NULL, (void *)socket_handler, (void *)&client_socket);
+        pthread_create(&id, NULL, (void *)tcp_thread, (void *)&client_socket);
 
         pthread_detach(id);
     }
 
     return 0;
 }
+
+
+int tcp_thread_start(void);
+int tcp_thread_start(void)
+{
+    pthread_t id;
+    pthread_create(&id, NULL, (void *)tcp_connection_thread, (void *)NULL);
+
+    //pthread_detach(id); //?
+
+    return 0;
+}
+
+
+
 

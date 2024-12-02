@@ -1,0 +1,6 @@
+
+BlueZのAPI/サンプルコードのメモ
+  https://qiita.com/ffmatsu/items/b7ca6a944b5a1ea9c7a6
+
+  
+  https://github.com/bluez/bluez/blob/master/test/example-gatt-client Examples in PYTHON 
