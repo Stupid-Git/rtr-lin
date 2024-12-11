@@ -102,8 +102,8 @@ static void read_repair_settings(void)
         // シリアルフラッシュメモリ 0x00004000～0x00005FFF バックアップ域ＣＲＣチェック
 //        crc32_init(&crc32);
         dst = &my_config.device.gap01[0];
-
-        serial_flash_multbyte_read(SFM_CONFIG_START_B, SFM_CONFIG_SIZE, dst);//バックアップ域 8KB
+        //serial_flash_multbyte_read(SFM_CONFIG_START_B, SFM_CONFIG_SIZE, dst);//バックアップ域 8KB
+        file_load__my_config_b();
 
         crc32 = crc32_bfr(dst, SFM_CONFIG_SIZE - 4);
         Printf("CRC %08X\r\n", crc32);
@@ -133,15 +133,19 @@ static void read_repair_settings(void)
             // バックアップ域をオリジナル域へコピー
             serial_flash_copy(SFM_CONFIG_START_B, SFM_CONFIG_START, SFM_CONFIG_SIZE);
             dst = &my_config.device.gap01[0];
-            serial_flash_multbyte_read(SFM_CONFIG_START, SFM_CONFIG_SIZE, dst);// オリジナル域 8KB
+            //serial_flash_multbyte_read(SFM_CONFIG_START, SFM_CONFIG_SIZE, dst);// オリジナル域 8KB
+            file_load__my_config();
             Printf("read_settings orignal area recover \r\n");
         }
         else if(result == 0x02) // バックアップ域を修復（実行時間 約２０ｍｓ）
         {
             // オリジナル域をバックアップ域へコピー
-            serial_flash_copy(SFM_CONFIG_START, SFM_CONFIG_START_B, SFM_CONFIG_SIZE);
-            dst = &my_config.device.gap01[0];
-            serial_flash_multbyte_read(SFM_CONFIG_START, SFM_CONFIG_SIZE, dst);// オリジナル域 8KB
+            //serial_flash_copy(SFM_CONFIG_START, SFM_CONFIG_START_B, SFM_CONFIG_SIZE);
+            file_store__my_config_b();
+
+            //dst = &my_config.device.gap01[0];
+            //serial_flash_multbyte_read(SFM_CONFIG_START, SFM_CONFIG_SIZE, dst);// オリジナル域 8KB
+            file_load__my_config();
             Printf("read_settings backup area recover \r\n");
         }
         else if(blank == true)  // デフォルト書き込み（実行時間 約２０ｍｓ）両領域ＣＲＣエラーで全データ０ｘＦＦ
@@ -156,7 +160,7 @@ static void read_repair_settings(void)
         }
         else    // 修復不可能なのでそのまま（バックアップアルゴリズムが正確に働けば、両領域が壊れることはないはず）
         {
-            __NOP();
+//TODO            __NOP();
             Printf("SFM 1,2 Error\r\n");
         }
 
@@ -193,13 +197,14 @@ void rewrite_settings(void)
         my_config.crc = crc32_bfr((uint8_t *)&my_config, SFM_CONFIG_SIZE - 4);  // ＣＲＣ計算
         Printf("my_config crc %08X\r\n", my_config.crc);
 
-        serial_flash_block_unlock();                                // グローバルブロックプロテクション解除
+        //serial_flash_block_unlock();                                // グローバルブロックプロテクション解除
 
         // オリジナル域を書き換えてからバックアップ域を書き換えるという手順が重要（どちらかが必ず正しく保持される）
-        serial_flash_sector_erase(SFM_CONFIG_START);
-        serial_flash_sector_erase(SFM_CONFIG_START + SFM_CONFIG_SECT);                                                                                  // オリジナル域消去
+        //serial_flash_sector_erase(SFM_CONFIG_START);
+        //serial_flash_sector_erase(SFM_CONFIG_START + SFM_CONFIG_SECT);                                                                                  // オリジナル域消去
 
-        serial_flash_multbyte_write(SFM_CONFIG_START, SFM_CONFIG_SIZE, (char *)&my_config);  // デフォルト値書き込み
+        //serial_flash_multbyte_write(SFM_CONFIG_START, SFM_CONFIG_SIZE, (char *)&my_config);  // デフォルト値書き込み
+        file_store__my_config_b();
 
         #if 0
         for(i = 0; i < SFM_CONFIG_SIZE; i += 256) {
@@ -208,10 +213,11 @@ void rewrite_settings(void)
 #endif
         tx_thread_sleep (1);                                                 // オリジナル域の書き込みを確実にしてからバックアップ域消去にいく
 
-        serial_flash_sector_erase(SFM_CONFIG_START_B);
-        serial_flash_sector_erase(SFM_CONFIG_START_B + SFM_CONFIG_SECT);                                                                                         // バックアップ域消去
+        //serial_flash_sector_erase(SFM_CONFIG_START_B);
+        //serial_flash_sector_erase(SFM_CONFIG_START_B + SFM_CONFIG_SECT);                                                                                         // バックアップ域消去
 
-        serial_flash_multbyte_write(SFM_CONFIG_START_B, SFM_CONFIG_SIZE, (char *)&my_config);  // デフォルト値書き込み
+        //serial_flash_multbyte_write(SFM_CONFIG_START_B, SFM_CONFIG_SIZE, (char *)&my_config);  // デフォルト値書き込み
+        file_store__my_config_b();
 
         #if 0
         for(i = 0; i < SFM_CONFIG_SIZE; i += 256) {
@@ -573,10 +579,58 @@ void init_factory_default(uint8_t type, uint8_t mode)
             break;
         default:        // JP  or ESPEC or Hitachi
             my_config.device.TempUnits[0] = 0;                                          // C
+/*DEBUG
+            WriteText(my_config.device.TimeDiff, "+0100", strlen("+0100"), sizeof(my_config.device.TimeDiff));                      // 時差 +0100
+            WriteText(my_config.device.TimeForm, "*d-*m-*Y *H:*i:*s", strlen("*d-*m-*Y *H:*i:*s"), sizeof(my_config.device.TimeForm));
+            WriteText(my_config.device.TimeZone, "(UTC+01:00) Central European Time", strlen("(UTC+01:00) Central European Time"), sizeof(my_config.device.TimeZone));
+            WriteText(my_config.device.Summer, "20300-0101001000-010100+60", strlen("20300-0101001000-010100+60"), sizeof(my_config.device.Summer));  // 3月第2日曜日午前2時にLocal+60分
+*/ /*DEBUG*/
             WriteText(my_config.device.TimeDiff, "+0900", strlen("+0900"), sizeof(my_config.device.TimeDiff));                      // 時差 +0900
             WriteText(my_config.device.TimeForm, "*Y-*m-*d *H:*i:*s", strlen("*Y-*m-*d *H:*i:*s"), sizeof(my_config.device.TimeForm));
-            WriteText(my_config.device.TimeZone, "(UTC+09:00) 大阪、札幌、東京", strlen("(UTC+09:00) 大阪、札幌、東京"), sizeof(my_config.device.TimeZone));
+//      NG    WriteText(my_config.device.TimeZone, "(UTC+09:00) 大阪、札幌、東京", strlen("(UTC+09:00) 大阪、札幌、東京"), sizeof(my_config.device.TimeZone));
+//      NG      WriteText(my_config.device.TimeZone, "(UTC+09:00) ヤクーツク", strlen("(UTC+09:00) ヤクーツク"), sizeof(my_config.device.TimeZone));
             WriteText(my_config.device.Summer, "00101+0000000101+000000+00", strlen("00101+0000000101+000000+00"), sizeof(my_config.device.Summer));  // Summer time 無し
+/*DEBUG*/
+/*OK*/memset(my_config.device.TimeZone, 0, sizeof(my_config.device.TimeZone));
+uint8_t jjj[] = {0x28, 0x55, 0x54, 0x43, 0x2B, 0x30, 0x39, 0x3A, 0x30, 0x30, 0x29, 0x20, 0x91, 0xE5,
+                 0x8D, 0xE3, 0x81, 0x41, 0x8E, 0x44, 0x96, 0x79, 0x81, 0x41, 0x93, 0x8C, 0x8B, 0x9E};
+//memcpy(my_config.device.TimeZone, jjj, sizeof(jjj));
+
+uint8_t uuu[] = {0x28, 0x55, 0x54, 0x43, 0x2b, 0x30, 0x39, 0x3a, 0x30, 0x30, 0x29, 0x20, 0xe5, 0xa4,
+                 0xa7, 0xe9, 0x98, 0xaa, 0xe3, 0x80, 0x81, 0xe6, 0x9c, 0xad, 0xe5, 0xb9, 0x8c, 0xe3,
+                 0x80, 0x81, 0xe6, 0x9d, 0xb1, 0xe4, 0xba, 0xac};
+//memcpy(my_config.device.TimeZone, uuu, sizeof(uuu));
+/*
+Resonse
+54 32 BF 00 52 44 54 49  4D 3A 44 54 49 4D 45 3D  |  T2..RDTIM:DTIME=
+0E 00 32 30 32 34 31 32  31 30 30 33 30 32 31 37  |  ..20241210030217
+55 54 43 3D 0A 00 31 37  33 33 37 39 39 37 33 37  |  UTC=..1733799737
+42 49 41 53 3D 03 00 2B  30 30 44 53 54 3D 1A 00  |  BIAS=..+00DST=..
+30 30 31 30 31 2B 30 30  30 30 30 30 30 31 30 31  |  00101+0000000101
+2B 30 30 30 30 30 30 2B  30 30 46 4F 52 4D 3D 11  |  +000000+00FORM=.
+00 2A 59 2D 2A 6D 2D 2A  64 20 2A 48 3A 2A 69 3A  |  .*Y-*m-*d *H:*i:
+2A 73 44 49 46 46 3D 05  00 2B 30 39 30 30 5A 4F  |  *sDIFF=..+0900ZO
+4E 45 3D 24 00 28 55 54  43 2B 30 39 3A 30 30 29  |  NE=$.(UTC+09:00)
+20 E5 A4 A7 E9 98 AA E3  80 81 E6 9C AD E5 B9 8C  |   ...............
+E3 80 81 E6 9D B1 E4 BA  AC 53 59 4E 43 3D 01 00  |  .........SYNC=..
+31 53 54 41 54 55 53 3D  09 00 30 30 30 32 2D 30  |  1STATUS=..0002-0
+30 30 30 2D 1C                                    |  000-.
+Resonse
+54 32 BF 00 52 44 54 49  4D 3A 44 54 49 4D 45 3D  |  T2..RDTIM:DTIME=
+0E 00 32 30 32 34 31 32  31 30 30 32 35 30 30 39  |  ..20241210025009
+55 54 43 3D 0A 00 31 37  33 33 37 39 39 30 30 39  |  UTC=..1733799009
+42 49 41 53 3D 03 00 2B  30 30 44 53 54 3D 1A 00  |  BIAS=..+00DST=..
+30 30 31 30 31 2B 30 30  30 30 30 30 30 31 30 31  |  00101+0000000101
+2B 30 30 30 30 30 30 2B  30 30 46 4F 52 4D 3D 11  |  +000000+00FORM=.
+00 2A 59 2D 2A 6D 2D 2A  64 20 2A 48 3A 2A 69 3A  |  .*Y-*m-*d *H:*i:
+2A 73 44 49 46 46 3D 05  00 2B 30 39 30 30 5A 4F  |  *sDIFF=..+0900ZO
+4E 45 3D 24 00 28 55 54  43 2B 30 39 3A 30 30 29  |  NE=$.(UTC+09:00)
+20 E5 A4 A7 E9 98 AA E3  80 81 E6 9C AD E5 B9 8C  |   ...............
+E3 80 81 E6 9D B1 E4 BA  AC 53 59 4E 43 3D 01 00  |  .........SYNC=..
+31 53 54 41 54 55 53 3D  09 00 30 30 30 32 2D 30  |  1STATUS=..0002-0
+30 30 30 28 1C                                    |  000(.
+*/
+
 
             WriteText(my_config.network.SntpServ2, "ntp.nict.jp", strlen("ntp.nict.jp"), sizeof(my_config.network.SntpServ2));
 
@@ -713,9 +767,12 @@ void init_factory_default(uint8_t type, uint8_t mode)
  */
 void init_regist_file_default(void)
 {
-   if(tx_mutex_get(&mutex_sfmem, WAIT_100MSEC) == TX_SUCCESS)          // シリアルフラッシュ ミューテックス確保 スレッド確定
+    if(tx_mutex_get(&mutex_sfmem, WAIT_100MSEC) == TX_SUCCESS)          // シリアルフラッシュ ミューテックス確保 スレッド確定
     {
         //serial_flash_multbyte_read(SFM_REGIST_START, sizeof(root_registry), (char *)&root_registry);  // ルート情報構造体に読み込む
+        void file_load__registry(void);
+        file_load__registry();
+
         memset((uint8_t *)&root_registry,0x00,sizeof(root_registry));
         root_registry.length = 16;
         root_registry.header = 0xfb;
@@ -725,11 +782,13 @@ void init_regist_file_default(void)
         root_registry.rssi_limit2 = 60;
         root_registry.version = 0x02;
 
-        serial_flash_block_unlock();                        // グローバルブロックプロテクション解除
-
-        serial_flash_erase(SFM_REGIST_START, SFM_REGIST_END);
-
-        serial_flash_multbyte_write(SFM_REGIST_START, sizeof(root_registry), (char *)&root_registry);
+        //serial_flash_block_unlock();                        // グローバルブロックプロテクション解除
+        //serial_flash_erase(SFM_REGIST_START, SFM_REGIST_END);
+        //serial_flash_multbyte_write(SFM_REGIST_START, sizeof(root_registry), (char *)&root_registry);
+        memset(&regist_data[0], 0xff, sizeof(regist_data)); // equivalent to erase flash (All 0xFF)
+        memcpy(&regist_data[0], &root_registry, sizeof(root_registry)); //SFM_REGIST_START
+        void file_store__registry(void);
+        file_store__registry();
 
         tx_mutex_put(&mutex_sfmem);
     }
@@ -745,9 +804,18 @@ void init_group_file_default(void)
     static const uint8_t header[18] = {0x10,0x00,0x56,0x47,0x52,0x50,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
     if(tx_mutex_get(&mutex_sfmem, WAIT_100MSEC) == TX_SUCCESS){
-        serial_flash_block_unlock();                                // グローバルブロックプロテクション解除
-        serial_flash_erase(SFM_GROUP_START, SFM_GROUP_END);
-        serial_flash_multbyte_write(SFM_GROUP_START, (uint32_t)18, (char *)&header[0]);
+
+    	//serial_flash_block_unlock();                                // グローバルブロックプロテクション解除
+        //serial_flash_erase(SFM_GROUP_START, SFM_GROUP_END);
+        //serial_flash_multbyte_write(SFM_GROUP_START, (uint32_t)18, (char *)&header[0]);
+
+        void file_load__group(void);
+        file_load__group();
+        memset(&group_data[0], 0xff, sizeof(group_data));
+        memcpy(&group_data[0], &header[0], 18); //SFM_GROUP_START
+        void file_store__group(void);
+        file_store__group();
+
         tx_mutex_put(&mutex_sfmem);
     }
 }

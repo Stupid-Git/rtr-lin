@@ -11,17 +11,18 @@
 #include "_r500_config.h"
 #include <stdint.h>
 
+#include "r500_defs.h"
+
 #ifdef EDF
 #undef EDF
 #endif
 
 #ifndef _COMP_AUTO_THREAD_C_
-    #define EDF extern
+#define EDF extern
 #else
-    #define EDF
+#define EDF
 #endif
 
-#include "r500_defs.h"
 
 //
 

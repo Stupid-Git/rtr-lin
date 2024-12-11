@@ -8,6 +8,8 @@
 #ifndef CMD_FUNC_H_
 #define CMD_FUNC_H_
 
+#include <stdint.h>
+
 #ifdef EDF
 #undef EDF
 #endif
@@ -27,9 +29,17 @@ typedef struct{
         char   *Name;
         char   *Data;
         int    Size;
-    } Arg[40];
+        //int32_t    Size;
+        //int64_t    Size;
+    } __attribute__((packed)) Arg[40];// __attribute__((aligned(4)));
     int Count;
-} PARA_LIST;
+} __attribute__((packed)) PARA_LIST;// __attribute__((aligned(4)));
+
+// I think the problem we get without the attributes is because there
+// are various
+// #pragma pack(1) and #pragma pack(4) statements floating around
+// So depending where this header file is called, we get a different packing size
+// and so each "Arg" is either (8+8+4=20) bytes or (8+8+8=24) bytes.
 
 ///パラメータリスト構造体
 EDF PARA_LIST   PLIST;

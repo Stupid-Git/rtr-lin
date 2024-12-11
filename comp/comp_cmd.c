@@ -265,11 +265,11 @@ static void* cmd_thread(void *socket_desc)
 
     //LED_Set( LED_USBCOM, LED_OFF );
     //LED_Set( LED_LANCOM, LED_OFF );
-
+Printf("cmd_thread Started\n");
     for(; ;) {
         /*status = *///tx_event_flags_get(&g_command_event_flags, FLG_CMD_EXEC, TX_OR_CLEAR, &actual_events, TX_WAIT_FOREVER);
         /*status = */tdx_flags_get(&g_command_event_flags, FLG_CMD_EXEC, /*TX_OR_CLEAR,*/ &actual_events, TX_WAIT_FOREVER);
-
+Printf("cmd_thread Got Exec\n");
         if(actual_events & FLG_CMD_EXEC) {
             tdx_queue_receive(&cmd_queue, &cmd_msg, 0, 10);	//TX_NO_WAIT);
             //Printf("CMD %d\r\n", cmd_msg[0]);
@@ -486,6 +486,7 @@ static int AnalyzeCmd(char *pCmd, int Size, uint32_t route)
 
                             Count++;                            // パラメータ数
                             PLIST.Arg[Count].Name = pCmd;
+//Printf("### pCmd = %s\n", pCmd);
                             pCmd += paralen;                    // パラメータ文字数分送る
                             if ( *pCmd != '=' ) {
                                 Printf("FOMAT ERROR 2(%d/%d)\r\n", k,j); //debug
@@ -493,8 +494,10 @@ static int AnalyzeCmd(char *pCmd, int Size, uint32_t route)
                                 goto ExitScanCmd;
                             }
                             *pCmd++ = '\0';                     // nullセット
+Printf("### PLIST.Arg[%d].Name = %s\n", Count, PLIST.Arg[Count].Name);
                             sz  = *pCmd++;
                             sz = (sz | ( (uint32_t/*UINT*/)*pCmd++ << 8 ));      // パラメータサイズ
+//Printf("### sz = %d\n", sz);
                             PLIST.Arg[Count].Size = (int)sz;         // パラメータサイズ
                             PLIST.Arg[Count].Data = pCmd;       // 最後はnullとは限らないよ
                             pCmd += sz;                         // 次のパラメータの先頭へ
@@ -526,6 +529,7 @@ ExitScanCmd:
         Printf("   Command Not Found \r\n");
     }
     PLIST.Count = Count;                // パラメータ数
+Printf("### PLIST.Count = %d\n", PLIST.Count);
     ERRORCODE.ERR = Err;
 
 //    if((Err == ERR(CMD, NOERROR)) && (opponent == CLIENT_BLE) && (ble_passcode_lock == true)) ERRORCODE.ERR = Err = ERR(BLE, REFUSE);   // ＢＬＥ通信の場合、パスコードロック中なら、Ｔコマンドは受け付けない
@@ -604,7 +608,93 @@ int cmd_thread_start(void)
 int cmd_thread_init(void);
 int cmd_thread_init(void)
 {
+    //int tdx_queue_create(tdx_queue_t *queue, void *queue_memory, size_t queue_size, size_t message_size)
+
+    static uint8_t Qbuf[4 * 32];
+    tdx_queue_create(&cmd_queue, Qbuf, 4, 32);
+    tdx_flags_create(&g_command_event_flags, "");
 
     return 0;
 }
+
+
+
+int cmd_thread_fakeT2(void);
+int cmd_thread_fakeT2(void)
+{
+    static CmdQueue_t cmd_msg;
+
+    uint32_t txLen;
+
+    fact_config.SerialNumber = 0x5F580123;
+    init_factory_default(0,0);
+/*
+    txLen = (int32_t)SCOM.rxbuf.length;
+    cmd_msg.CmdRoute = CMD_TCP;            //コマンド キュー  コマンド実行要求元
+    cmd_msg.pT2Command = &SCOM.rxbuf.command;    //コマンド処理する受信データフレームの先頭ポインタ
+    cmd_msg.pT2Status = &SCOM.txbuf.header;    //コマンド処理された応答データフレームの先頭ポインタ
+    cmd_msg.pStatusSize = (int32_t *)&txLen;              //コマンド処理された応答データフレームサイズ
+*/
+    static uint8_t T[1024];
+    static uint8_t R[1024];
+
+    txLen = 6;
+    //54 32 06 00 52 55 49 4E  46 3A BE 01              |  T2..RUINF:..
+    T[0] = 0x54;
+    T[1] = 0x32;
+    T[2] = 0x06;
+    T[3] = 0x00;
+    T[4] = 0x52;
+    T[5] = 0x55;
+    T[6] = 0x49;
+    T[7] = 0x4E;
+    T[8] = 0x46;
+    T[9] = 0x3A;
+    T[10] = 0xBE;
+    T[11] = 0x01;
+    //|  T2..RUINF:..
+
+
+    cmd_msg.CmdRoute = CMD_TCP;            //コマンド キュー  コマンド実行要求元
+    cmd_msg.pT2Command = &T[0]; //SCOM.rxbuf.command;    //コマンド処理する受信データフレームの先頭ポインタ
+    cmd_msg.pT2Status = &R[0]; //&SCOM.txbuf.header;    //コマンド処理された応答データフレームの先頭ポインタ
+    cmd_msg.pStatusSize = (int32_t *)&txLen;              //コマンド処理された応答データフレームサイズ
+
+
+    tdx_queue_send(&cmd_queue, &cmd_msg, 0, 10);    //TX_NO_WAIT);
+    tdx_flags_set(&g_command_event_flags, FLG_CMD_EXEC);
+    //
+    uint32_t actual_events;
+    tdx_flags_get(&g_command_event_flags, FLG_CMD_END, /*TX_OR_CLEAR,*/ &actual_events, TX_WAIT_FOREVER);
+
+    Printf("*cmd_msg.pStatusSize = %d\n", *cmd_msg.pStatusSize);
+    PrintHex("", R, txLen);
+
+    return 0;
+}
+
+int DoCmd(uint8_t *REQbuf, uint8_t *RSPbuf, uint32_t REQlen,  uint32_t *pRSPlen);
+int DoCmd(uint8_t *REQbuf, uint8_t *RSPbuf, uint32_t REQlen,  uint32_t *pRSPlen)
+{
+    int rtn = 0;
+    static CmdQueue_t cmd_msg;
+
+    *pRSPlen = REQlen;
+    cmd_msg.CmdRoute = CMD_TCP;            //コマンド キュー  コマンド実行要求元
+    cmd_msg.pT2Command = REQbuf; //&T[0]; //SCOM.rxbuf.command;    //コマンド処理する受信データフレームの先頭ポインタ
+    cmd_msg.pT2Status = RSPbuf; //&R[0]; //&SCOM.txbuf.header;    //コマンド処理された応答データフレームの先頭ポインタ
+    cmd_msg.pStatusSize = pRSPlen; //(int32_t *)&txLen;              //コマンド処理された応答データフレームサイズ
+
+    tdx_queue_send(&cmd_queue, &cmd_msg, 0, 10);    //TX_NO_WAIT);
+    tdx_flags_set(&g_command_event_flags, FLG_CMD_EXEC);
+    //
+    uint32_t actual_events;
+    tdx_flags_get(&g_command_event_flags, FLG_CMD_END, /*TX_OR_CLEAR,*/ &actual_events, TX_WAIT_FOREVER);
+
+    Printf("*cmd_msg.pStatusSize = %d\n", *cmd_msg.pStatusSize);
+    PrintHex("Response", RSPbuf, *cmd_msg.pStatusSize);
+
+    return rtn;
+}
+
 

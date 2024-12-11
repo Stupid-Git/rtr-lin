@@ -1,4 +1,6 @@
 
+#include "_r500_config.h"
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -8,6 +10,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+
+#include "r500_defs.h"
 
 
 
@@ -54,6 +58,7 @@ struct sUDP{
   * @brief   UDP 応答のセット
   * @bug UDP.Serialにセットする値は8Byteを超える
   */
+ /*TBR
  void uint32to8(uint32_t val, char *RET)
  {
      char	dmy[4];
@@ -67,6 +72,7 @@ struct sUDP{
          RET[i] = dmy[i];
      }
  }
+*/
 
  void Udp_Resp_Set(void)
  {
@@ -93,12 +99,12 @@ struct sUDP{
      //UDP.ComPort[1] = my_config.network.SocketPort[1];
 
      //fact_config.SerialNumber = 0x5f58ffff;// 0x5f9cffff; //debug
-     //sprintf( (char *)UDP.Serial , "%.8lX", fact_config.SerialNumber);       ///< @note 8Byte超える @bug 8Byte超える
-     sprintf( (char *)UDP.Serial , "58581234");
-     sprintf( (char *)UDP.BaseName , "RTR500BW_Fake");
-     sprintf( (char *)UDP.Description , "Expllll");
-     //memcpy(UDP.BaseName,my_config.device.Name, 32);
-     //memcpy(UDP.Description,my_config.device.Description,64);
+     sprintf( (char *)UDP.Serial , "%.8lX", fact_config.SerialNumber);       ///< @note 8Byte超える @bug 8Byte超える
+     memcpy(UDP.BaseName,my_config.device.Name, 32);
+     memcpy(UDP.Description,my_config.device.Description,64);
+     sprintf( (char *)UDP.Serial , "5F580123");
+     sprintf( (char *)UDP.BaseName , "RTR500BW_5F580123");
+     sprintf( (char *)UDP.Description , "Karel's Linux 500BW");
      // PW は送信しない
      // MAC test data
 

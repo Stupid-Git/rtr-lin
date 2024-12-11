@@ -1,5 +1,7 @@
 #include "_r500_config.h"
 
+#define _CMD_FUNC_C_
+#include "Cmd_func.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -17,8 +19,6 @@
 
 #include "r500_defs.h"
 
-#define _CMD_FUNC_C_
-#include "Cmd_func.h"
 
 #if 0
 //cmd_thread_entry.c/hに移動
@@ -234,11 +234,21 @@ int32_t ParamInt32( char *Key )
     int    Size;
     uint8_t    hash;
 
+    //Printf("### Key = %s\n", Key);
+    //Printf("###[20] PLIST.Count = %d\n", PLIST.Count);
+    //Printf("###[20] PLIST addr  = %lx\n", (char *)&PLIST);
+    //Printf("###[20] PLIST addrC = %lx\n", (char *)&PLIST.Count);
+    //Printf("###[20] sizeof(int) = %d\n", sizeof(int));
+    //Printf("###[20] sizeof(Size) = %d\n", sizeof(PLIST.Arg[0].Size));
+
     hash = Hash( Key );
+    //Printf("### hash = %d\n", hash);
     if ( hash ) {               // 定義されている
         Size = PLIST.Arg[hash].Size;
+        //Printf("### Size = %d\n", Size);
         if ( Size ){
             Value = AtoL( PLIST.Arg[hash].Data, Size );
+            //Printf("### Value = %d\n", Value);
         }
     }
 
@@ -289,8 +299,11 @@ uint8_t Hash( char *Key )
 {
     int   Count = PLIST.Count;            // パラメータ数
     uint8_t    i;
+//Printf("###[21] PLIST.Count = %d\n", PLIST.Count);
+//Printf("### Hash: PLIST.Count = '%d'.\n", PLIST.Count);
 
     for ( i=1; i<=Count; i++ ) {
+//Printf("### Hash: Name = '%s'.\n", PLIST.Arg[i].Name);
         if ( strcmp( Key, PLIST.Arg[i].Name ) == 0 ) {
             Key = 0;        // find
             break;

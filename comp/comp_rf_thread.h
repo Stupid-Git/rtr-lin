@@ -62,10 +62,10 @@
 #define RF_RESET_ACTIVE()     g_ioport.p_api->pinWrite(RFM_RESET_PORT, IOPORT_LEVEL_LOW)
 #define RF_RESET_INACTIVE()   g_ioport.p_api->pinWrite(RFM_RESET_PORT, IOPORT_LEVEL_HIGH)
 #else
-#define RF_CS_ACTIVE()        //TODO
-#define RF_CS_INACTIVE()      //TODO
-#define RF_RESET_ACTIVE()     //TODO
-#define RF_RESET_INACTIVE()   //TODO
+//#define hw_RF_CS_ACTIVE()        //TODO
+//#define hw_RF_CS_INACTIVE()      //TODO
+//#define hw_RF_RESET_ACTIVE()     //TODO
+//#define hw_RF_RESET_INACTIVE()   //TODO
 #endif // TODO
 
 //Globals.hから移動
@@ -99,8 +99,6 @@ EDF uint8_t rpt_cnt_search(uint8_t);                                // 自局の
 //EDF char regu_moni_scan(uint8_t data_format);       //Rfunc.cに移動2020.06.18
 EDF uint32_t R500C_Direct(int mode, int time, char *pData);
 
-EDF int Chreck_RFM_Busy(void);      //RFMのビジーチェック
-EDF int Chreck_RFM_Status(void);    //無線モジュールのステータスをチェックする
 
 /*
 EDF uint8_t auto_realscan_New(uint8_t DATA_FORMAT);

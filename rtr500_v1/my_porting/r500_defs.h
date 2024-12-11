@@ -31,6 +31,8 @@
 #include "Globals.h"
 #include "MyDefine.h"
 #include "flag_def.h"
+#include "Error.h"
+#include "Lang.h"
 
 // common/inc
 #include "Xml.h"

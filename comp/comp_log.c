@@ -220,9 +220,9 @@ static uint8_t LogMatch( char* dst, LOG_LINE *src, int16_t size );
  * @return
  * @note    EBSTSのパラメータで使用する
  */
-#if 0 //TODO
 void Net_LOG_Write( uint32_t stat, const char *fmt, uint32_t msg)
 {
+#if 0 //TODO
     int mode;
 
     NetLogInfo.NetUtc = RTC_GetGMTSec();            // 時刻(UTIM)
@@ -236,8 +236,8 @@ void Net_LOG_Write( uint32_t stat, const char *fmt, uint32_t msg)
     NetLogInfo.NetStat = stat;                      // ネットワーク通信の結果（コード）
 
     sprintf(&NetLogInfo.NetMsg[0], fmt, msg);         // ネットワーク通信の結果（メッセージ）
-}
 #endif
+}
 
 
 /**

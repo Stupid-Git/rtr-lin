@@ -597,7 +597,7 @@ uint32_t CFReadInfo(void)
     str[4] = 0x00;
     //taskEXIT_CRITICAL();
     StatusPrintf( "BLV", "%s", &str);
-    //rfm_reset();
+    //hw_rfm_reset();
 
 
     return(ERR(CMD, NOERROR));
@@ -770,15 +770,23 @@ uint32_t CFReadSettingsFile(void)
 
 
     Printf("CMD:RSETF\r\n");
+//Printf("###[1] PLIST.Count = %d\n", PLIST.Count);
 
     if(tx_mutex_get(&mutex_sfmem, WAIT_100MSEC) == TX_SUCCESS){
         // LONG_MAX:0x7fffffffL INT_MAX:0x7fffffffL
+//Printf("###[2] PLIST.Count = %d\n", PLIST.Count);
+//Printf("###[2] PLIST addr  = %lx\n", (char *)&PLIST);
+//Printf("###[2] PLIST addrC = %lx\n", (char *)&PLIST.Count);
+//Printf("###[2] sizeof(int) = %d\n", sizeof(int));
+//Printf("###[0] sizeof(Size) = %d\n", sizeof(PLIST.Arg[0].Size));
+
         Offset = ParamInt32("OFFSET");
+//Printf("###[3] PLIST.Count = %d\n", PLIST.Count);
         if(Offset < 0 ){
             Offset = 0;                      // 未指定時オフセット０
         }
 
-        Printf("RSETF offset = %d\r\n", Offset);
+        Printf("RSETF offset = %d\n", Offset);
 
         adr = (uint32_t)(SFM_REGIST_START + (uint32_t)Offset);
         if(adr > (SFM_REGIST_END + 1)){
@@ -801,17 +809,24 @@ uint32_t CFReadSettingsFile(void)
         StsArea[CmdStatusSize++] = (uint8_t)Size;
         StsArea[CmdStatusSize++] = (uint8_t)(Size / 256);
 
-        serial_flash_multbyte_read(adr, (uint32_t)Size, (char *)&StsArea[CmdStatusSize]); // 読み込み
+        //SFM_REGIST_START
+        //TODO serial_flash_multbyte_read(adr, (uint32_t)Size, (char *)&StsArea[CmdStatusSize]); // 読み込み
+        memcpy(&StsArea[CmdStatusSize], &regist_data[Offset], Size); //SFM_REGIST_START
+//TODO write to file
 
         CmdStatusSize += Size;
 
-        Printf("Size=%ld\r\n", CmdStatusSize);
+        Printf("Size=%d\n", CmdStatusSize);
 
 // sakaguchi 2021.06.15 ↓
         // SAVE（登録情報のサイズ）
         memset(work_buffer, 0x00, sizeof(work_buffer));
-        serial_flash_multbyte_read(SFM_REGIST_START, SFM_REGIST_SIZE_32, work_buffer); // 読み込み  work_buffer size 32K
-        while(1){
+        //serial_flash_multbyte_read(SFM_REGIST_START, SFM_REGIST_SIZE_32, work_buffer); // 読み込み  work_buffer size 32K
+//TODO read from file
+        memcpy(work_buffer, regist_data, SFM_REGIST_SIZE_32);
+
+        while(1)
+        {
             Save_tmp = *(uint16_t *)&work_buffer[Save];
             if((Save_tmp == 0xFFFF) || (Save_tmp == 0x0000)){
                 break;
@@ -1091,7 +1106,7 @@ uint32_t CFWriteUnitSettingsFile(void)
 // 2023.05.26 ↓
             if(kiroku){                         // 記録データ送信有無に変更がある場合
                 if(unitinfo_back.byte != unitinfo.byte){    // 子機設定に変更がある場合
-                    kk_delta_set(serial, 0x01);     // 対象子機の記録データを次回全データ吸い上げとする
+//TTODO                    kk_delta_set(serial, 0x01);     // 対象子機の記録データを次回全データ吸い上げとする
                 }
             }
 // 2023.05.26 ↑
@@ -1771,7 +1786,7 @@ uint32_t CFBSStatus(void)
     StatusPrintf_v2s( "PHY", (char *)&phy, sizeof(phy), "%u");
     StatusPrintf_v2s( "STATE", (char *)&UnitState, sizeof(UnitState), "%u");
 
-    val = (uint32_t)isUSBState();
+    val = 0; //TODO (uint32_t)isUSBState();
     StatusPrintf_v2s( "USB", (char *)&val, sizeof(val), "%u");
 
 /*TODO
@@ -2878,7 +2893,7 @@ uint32_t CFReadWalnAp(void)
     if(my_config.network.Phy[0]== 1){
 
         for(i = 0; i < 5; i++){
-            wifi_module_scan();
+//TODO            wifi_module_scan();
             if(0 < AP_Count){                       // sakaguchi 2020.09.07-2
                 break;
             }
@@ -3299,7 +3314,37 @@ uint32_t CFReadDtime(void)
 
     return ERR(CMD,NOERROR);
 }
-
+/*
+ * Resonse
+54 32 B6 00 52 44 54 49  4D 3A 44 54 49 4D 45 3D  |  T2..RDTIM:DTIME=
+0E 00 32 30 33 32 31 38  33 32 31 38 30 30 33 34  |  ..20321832180034
+55 54 43 3D 01 00 30 42  49 41 53 3D 03 00 2B 30  |  UTC=..0BIAS=..+0
+30 44 53 54 3D 1A 00 30  30 31 30 31 2B 30 30 30  |  0DST=..00101+000
+30 30 30 30 31 30 31 2B  30 30 30 30 30 30 2B 30  |  0000101+000000+0
+30 46 4F 52 4D 3D 11 00  2A 59 2D 2A 6D 2D 2A 64  |  0FORM=..*Y-*m-*d
+20 2A 48 3A 2A 69 3A 2A  73 44 49 46 46 3D 05 00  |   *H:*i:*sDIFF=..
+2B 30 39 30 30 5A 4F 4E  45 3D 24 00 28 55 54 43  |  +0900ZONE=$.(UTC
+2B 30 39 3A 30 30 29 20  E5 A4 A7 E9 98 AA E3 80  |  +09:00) ........
+81 E6 9C AD E5 B9 8C E3  80 81 E6 9D B1 E4 BA AC  |  ................
+53 59 4E 43 3D 01 00 31  53 54 41 54 55 53 3D 09  |  SYNC=..1STATUS=.
+00 30 30 30 32 2D 30 30  30 30 48 1A              |  .0002-0000H.
+ */
+/*
+ * Resonse
+54 32 BF 00 52 44 54 49  4D 3A 44 54 49 4D 45 3D  |  T2..RDTIM:DTIME=
+0E 00 32 30 32 34 31 32  30 35 30 37 34 35 33 34  |  ..20241205074534
+55 54 43 3D 0A 00 31 37  33 33 33 38 34 37 33 34  |  UTC=..1733384734
+42 49 41 53 3D 03 00 2B  30 30 44 53 54 3D 1A 00  |  BIAS=..+00DST=..
+30 30 31 30 31 2B 30 30  30 30 30 30 30 31 30 31  |  00101+0000000101
+2B 30 30 30 30 30 30 2B  30 30 46 4F 52 4D 3D 11  |  +000000+00FORM=.
+00 2A 59 2D 2A 6D 2D 2A  64 20 2A 48 3A 2A 69 3A  |  .*Y-*m-*d *H:*i:
+2A 73 44 49 46 46 3D 05  00 2B 30 39 30 30 5A 4F  |  *sDIFF=..+0900ZO
+4E 45 3D 24 00 28 55 54  43 2B 30 39 3A 30 30 29  |  NE=$.(UTC+09:00)
+20 E5 A4 A7 E9 98 AA E3  80 81 E6 9C AD E5 B9 8C  |   ...............
+E3 80 81 E6 9D B1 E4 BA  AC 53 59 4E 43 3D 01 00  |  .........SYNC=..
+31 53 54 41 54 55 53 3D  09 00 30 30 30 32 2D 30  |  1STATUS=..0002-0
+30 30 30 2E 1C                                    |  000..
+ */
 
 
 
@@ -4308,7 +4353,7 @@ uint32_t CFWriteSuction(void)
         read_my_settings();             //本体設定をＳＲＡＭへ読み込み
 // 2023.05.26 ↓
         if(chg & 0x0001){               // 記録データ送信有無に変更がある場合
-            kk_delta_set_all(0x01);     // 全子機の記録データを次回全データ吸い上げとする
+//TODO            kk_delta_set_all(0x01);     // 全子機の記録データを次回全データ吸い上げとする
             if(WaitRequest != WAIT_REQUEST){
                 Printf("WSETF AT Start (FLG_EVENT_INITIAL) 2\r\n");
                 tx_event_flags_set (&g_wmd_event_flags, FLG_EVENT_INITIAL, TX_OR);      // AT Start起動（登録情報変更時）
@@ -4491,7 +4536,7 @@ uint32_t CFExtSettings(void)
                         case SPEC_503B:
                         case SPEC_507B:
                             if((*(data+17) & 0x01) == 0){       // 設定変更フラグ（記録開始）
-                                kk_delta_set(ru_header.serial_no, 0x01);     // 変化あり
+//TODO                                kk_delta_set(ru_header.serial_no, 0x01);     // 変化あり
                             }
                             break;
                         case SPEC_505PS:
@@ -4507,7 +4552,7 @@ uint32_t CFExtSettings(void)
                         case SPEC_505BLX:
                             if(((*(data+30) & 0x01) != 0)       // 設定変更フラグ（記録開始）
                             || ((*(data+30) & 0x10) != 0)){     // 設定変更フラグ（表示設定）
-                                kk_delta_set(ru_header.serial_no, 0x01);     // 変化あり
+//TODO                                kk_delta_set(ru_header.serial_no, 0x01);     // 変化あり
                             }
                             break;
                         case SPEC_601:          // RTR601
@@ -7126,6 +7171,7 @@ uint32_t CFTestLAN(void)
     mode = ParamInt("MODE");            // 0: Monitor 1:Warnig 2:Suction Data
 
     Printf("[ETLAN] act %d mode %d \r\n", act, mode);
+#if 0 //TODO
 
     switch(ParamInt("ACT"))
     {
@@ -7237,7 +7283,7 @@ uint32_t CFTestLAN(void)
             Err = ERR(CMD, FORMAT);
             break;
     }
-
+#endif // 0 TODO
     return(Err);
 }
 
@@ -7290,9 +7336,11 @@ uint32_t CFTestWarning(void)
 
     if(tx_mutex_get(&mutex_network_init, TX_NO_WAIT) == TX_SUCCESS){
         tx_mutex_put(&mutex_network_init);
+/* TODO
         if(SendWarningFile(2, pat) != 0){
             Err = ERR(LAN, OTHER);
         }
+TODO */
     }else{
          Err = ERR(LAN, OTHER);         // sakaguchi 2020.09.09
     }
@@ -7821,7 +7869,7 @@ uint32_t CFKensa(void)
     cmd = (int16_t)ParamInt("CMD");
 
 
-
+#if 0 //TODO
 //----- segi ------------------------------------------------------------------------------------
 
 //  if(cmd = 0){
@@ -7905,7 +7953,7 @@ uint32_t CFKensa(void)
 
             }
         }
-
+#endif // 0 //TODO
     return (Err);
 }
 
@@ -7982,7 +8030,7 @@ uint32_t CFInspect(void)
         sz_buff = 0;
 
         memcpy( (char *)&XMLTemp[200], StsArea, (size_t)(pos+7) );      // 退避
-        res = KensaMain( cmd, data, sz_data, &buff, &sz_buff ); // 実行
+        //TODO res = KensaMain( cmd, data, sz_data, &buff, &sz_buff ); // 実行
         memcpy( StsArea, (char *)&XMLTemp[200], (size_t)(pos+7) );      // 戻す
 
         Printf("[INSPC]  sz_buff %ld\r\n",sz_buff);
@@ -8163,13 +8211,13 @@ uint32_t CFR500Special(void)
             Err = R500C_Direct(mode, time, data);       //コマンド処理部
             //処理部を関数R500C_Direct()に分離してrf_thread_entry.cに移動
 #if 0
-            RF_CS_ACTIVE;                                       // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
+            hw_RF_CS_ACTIVE;                                       // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
             rf_delay(20);
 
             calc_checksum_data(data);                               // チェックサム計算、チェックサム付加
 
-            rfm_send(data, (uint32_t)(data[3] + ((uint16_t)data[4] << 8) + 7));
-            if(rfm_recv((uint32_t)time) == RFM_NORMAL_END)
+            hw_rfm_send(data, (uint32_t)(data[3] + ((uint16_t)data[4] << 8) + 7));
+            if(hw_rfm_recv((uint32_t)time) == RFM_NORMAL_END)
             {
                 StatusPrintfB("DATA", (char *)&RCOM.rxbuf.header, RCOM.rxbuf.length + 5);   // チェックサム部は送らない
                 Err = ERR(RF,NOERROR);
@@ -8178,7 +8226,7 @@ uint32_t CFR500Special(void)
                      Err = ERR(RF, OTHER_ERR);
                  }
 
-            //RF_CS_INACTIVE;                                           // ＣＳ Ｌｏｗ（無線モジュール スタンバイ）
+            //hw_RF_CS_INACTIVE;                                           // ＣＳ Ｌｏｗ（無線モジュール スタンバイ）
 #endif
             break;
 

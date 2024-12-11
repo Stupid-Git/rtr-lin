@@ -48,117 +48,6 @@ static void print_T2(uint8_t *buf, int buflen)
 
 
 
-#if 0
-static uint32_t CFReadInfo(void)
-{
-    char str[5];
-
-
-    // 親機名称
-    StatusPrintf_S(sizeof(my_config.device.Name),  "NAME", "%s", my_config.device.Name);
-    // 本体シリアル番号
-    //fact_config.SerialNumber = 0x5f58ffff;
-    StatusPrintf("SER", "%.8lX", fact_config.SerialNumber);
-     // 本機の説明
-    StatusPrintf_S(sizeof(my_config.device.Description),  "DESC", "%s", my_config.device.Description);
-    // 本体ファームウェアバージョン
-    //StatusPrintf( "FWV", "%s %s", VERSION_FW, __DATE__ );  //debug
-    StatusPrintf( "FWV", "%s", VERSION_FW);     // release
-    // 無線モジュール ファームウェアバージョン
-    StatusPrintf( "RFV", "%.4X", regf_rfm_version_number & 0x0000ffff);
-
-    // debug
-    //StatusPrintf( "NETV", "%s", VERSION_FW);
-
-    // 温度単位
-    StatusPrintf_v2s( "UNITS", my_config.device.TempUnits, sizeof(my_config.device.TempUnits), "%lu");
-
-    // 販売者
-//    StatusPrintf("VENDER", "%d", fact_config.Vender);
-    /*
-    memcpy((char *)&(StsArea[CmdStatusSize]), "NAME=00", 7);
-    sp = CmdStatusSize + 5;                                     // データ数書き込み位置ラッチ
-    CmdStatusSize += 7;
-
-
-
-    memcpy(&StsArea[CmdStatusSize], my_config.device.Name, 26);
-    StsArea[CmdStatusSize + 26] = 0x00;                         // 最大２６バイトとするため、２６バイト目をＮＵＬＬにする
-
-    word_data_a = strlen((char *)&StsArea[CmdStatusSize]);           // ＮＵＬＬコードまでの長さ
-    if(word_data_a > 26) word_data_a = 26;
-    StsArea[sp] = (uint8_t)a.byte_lo;
-    StsArea[sp + 1] = a.byte_hi;
-    CmdStatusSize += word_data_a;
-
-    // 本機の説明
-    memcpy(&StsArea[CmdStatusSize], "DESC=00", 7);
-    sp = CmdStatusSize + 5;                                     // データ数書き込み位置ラッチ
-    CmdStatusSize += 7;
-
-    memcpy(&StsArea[CmdStatusSize], my_config.device.Description, 64);
-    StsArea[CmdStatusSize + 64] = 0x00;                         // 最大６４バイトとするため、６４バイト目をＮＵＬＬにする
-
-    word_data_a = strlen((char *)&StsArea[CmdStatusSize]);           // ＮＵＬＬコードまでの長さ
-    if(word_data_a > 64) word_data_a = 64;
-    StsArea[sp] = a.byte_lo;
-    StsArea[sp + 1] = a.byte_hi;
-    CmdStatusSize += word_data_a;
-    */
-
-    // シリアル通信速度
-    //StatusPrintf("BAUD", "%u", my_settings.scom_baudrate);
-
-    // パスコード
-    //StatusPrintfB("PASC", (char *)&my_config.ble.passcode, 4);
-
-    // ＢＬＥデバイスアドレス
-    //StatusPrintfB("DADR", (char *)&psoc.device_address, 8);
-
-    // 登録コード
-    //StatusPrintfB("REGC", (char *)&my_config.device.registration_code, 4);
-
-
-
-    switch(fact_config.SerialNumber & 0xf0000000){
-        case 0x30000000:    // US
-            StatusPrintf( "WCER", "%s", "1");
-            break;
-        case 0x40000000:    // EU
-            StatusPrintf( "WCER", "%s", "2");
-            break;
-        case 0x50000000:    // 日本
-            StatusPrintf( "WCER", "%s", "0");
-            break;
-        case 0xE0000000:    // 日本(ESPEC)
-            StatusPrintf( "WCER", "%s", "0");
-            break;
-        default:            //
-            StatusPrintf( "WCER", "%s", "0");
-            break;
-
-    }
-
-
-
-    // 無線モジュール シリアル番号
-    StatusPrintf("RFS", "%.8lX", regf_rfm_serial_number);
-
-
-
-    // ＢＬＥ ファームウェアバージョン
-    //taskENTER_CRITICAL();
-    memcpy(str, psoc.revision, 4);
-    str[4] = 0x00;
-    //taskEXIT_CRITICAL();
-    StatusPrintf( "BLV", "%s", &str);
-    //rfm_reset();
-
-
-    return(ERR(CMD, NOERROR));
-}
-#endif // 0
-
 static int creat_socket()
 {
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -215,7 +104,7 @@ int check_login(int client_socket)
     uint32_t rtn = 1;       // Pass NG  // 2022.10.31
 
 
-    Printf(" tcp send [login] \r\n");
+    Printf(" tcp send [login] \n");
     // send 'login'
     if( write(client_socket, CMD_LOGIN, 5) < 0)
    	{
@@ -261,7 +150,7 @@ int check_login(int client_socket)
             	strcpy(my_config.network.NetPass, "111111"); //Debug
 
                 if(Memcmp(my_config.network.NetPass, tcp_rxb, (int)strlen(my_config.network.NetPass) ,(int)Size) == 0){
-                    Printf("\r\nPassCode OK !!\r\n");
+                    Printf("\nPassCode OK !!\n");
                     // send 'OK'
                     if( write(client_socket, CMD_OK, 2) < 0)
                    	{
@@ -273,7 +162,7 @@ int check_login(int client_socket)
                 }
                 else
                 {
-                    Printf("\r\nPassCode Error !!\r\n");
+                    Printf("\nPassCode Error !!\n");
                     Printf(" tcp send [login] \n");
                     if( write(client_socket, CMD_LOGIN, 5) < 0)
                    	{
@@ -311,13 +200,13 @@ static void *tcp_thread(void *socket_desc)
         rtn = check_login(client_socket);
         if(rtn == 0){
             log_in = 1;
-            Printf("login end \r\n");
+            Printf("login end \n");
         }
         else
         {
             //PutLog(LOG_LAN, "TCP Login Error");
             //DebugLog( LOG_DBG, "TCP Login Error");
-            Printf("login error \r\n");
+            Printf("login error \n");
             goto L_Exit_Thread;
         }
     }
@@ -340,6 +229,57 @@ static void *tcp_thread(void *socket_desc)
         printf("tcp_thread: tcp_receive_length: %d\n", tcp_receive_length);
 
         print_T2((uint8_t*)tcp_rxb, tcp_receive_length);
+
+        //=================================
+        //=================================
+        {
+        	static def_com_u SCOM;
+            uint32_t len;
+            uint32_t t_len;
+            uint16_t cmd_len;
+            uint8_t *poi;
+            uint32_t j;
+
+        	len = tcp_receive_length;
+        	t_len = len;
+        	if(tcp_rxb[0] != 'T'){
+        		goto EXIT;
+        	}
+        	if(len < 4){
+        		goto EXIT;
+        	}
+
+        	SCOM.rxbuf.header = SCOM.rxbuf.command = tcp_rxb[0];
+        	SCOM.rxbuf.subcommand = tcp_rxb[1];
+        	//poi = (uint8_t *)&SCOM.rxbuf.command;
+        	// データ部以外が6バイト
+        	cmd_len = (uint16_t)((uint16_t)tcp_rxb[2] + (uint16_t)tcp_rxb[3] * 256);
+        	SCOM.rxbuf.length = cmd_len;
+
+        	Printf("TCP recv end  %d (%d)\n", t_len,cmd_len);
+
+        	poi = (uint8_t *)&SCOM.rxbuf.data;
+
+        	if(t_len >= (uint32_t)(cmd_len+6))
+        	{
+        		Printf("TCP recv end 1 %d (%d)\n", t_len,cmd_len);
+        		for(j = 0; j < t_len; j++ ){
+        			*poi++ = tcp_rxb[j+4];
+        		}
+        		//ret = 0;
+
+        		int DoCmd(uint8_t *REQbuf, uint8_t *RSPbuf, uint32_t REQlen,  uint32_t *pRSPlen);
+        	    DoCmd(&SCOM.rxbuf.command, &SCOM.txbuf.header, t_len,  &t_len);
+                Printf("TCP recv end 2 %d (%d)\n", t_len,cmd_len);
+
+                ssize_t wsize = write(client_socket, &SCOM.txbuf.header, t_len);
+                Printf("TCP write wsize = %ld\n", wsize);
+        	}
+
+        	EXIT:;
+        }
+        //=================================
+        //=================================
 
     }
 

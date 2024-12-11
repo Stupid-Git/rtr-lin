@@ -260,14 +260,14 @@ typedef struct {
  * @note    パディングあり
  */
 typedef struct {
-    char     for_packing;
-    char     header;
-    char     command;
-    char     subcommand;
+    uint8_t     for_packing;
+    uint8_t     header;
+    uint8_t     command;
+    uint8_t     subcommand;
     uint16_t    length;
 //    char     data[4096 + 64 +128];
 //    char     data[1024*12 + 64 +128];
-    char     data[1024*5];                  // 5KB sakaguchi cg
+    uint8_t     data[1024*5];                  // 5KB sakaguchi cg
 //    uint32_t    start;        //未使用なのでコメントアウト
 //    uint32_t    end;        //未使用なのでコメントアウト
 //    uint16_t    capacity;        //未使用なのでコメントアウト
@@ -386,7 +386,7 @@ typedef union {
     struct def_501{
 
         uint16_t length;                                        // 0  ０ｘ６０
-        char header;                                            // 2  ０ｘｆｅ
+        uint8_t header;                                            // 2  ０ｘｆｅ
         char number;                                            // 3  子機の番号 １～
         char superior;                                          // 4  上位の中継機番号 ０：親機
         char set_flag;                                          // 5  自律動作フラグなど
@@ -1649,7 +1649,7 @@ extern char CertFile_WS[4096];
 ///証明書作業用バッファ
 extern char CertFile_USER[4096];
 //
-extern char Group_Buffer[1024];
+//Not used extern char Group_Buffer[1024];
 
 
 //EDF uint8_t log_test[1024]  __attribute__((section(".xram")));

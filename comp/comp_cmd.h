@@ -43,8 +43,8 @@
 ///T2コマンド処理メッセージキューの定義
 typedef struct{
     uint32_t CmdRoute;      ///<T2コマンドの要求元
-    char *pT2Command;    ///<T2コマンドの先頭ポインタ
-    char *pT2Status;     ///<T2コマンド応答の先頭ポインタ
+    uint8_t *pT2Command;    ///<T2コマンドの先頭ポインタ
+    uint8_t *pT2Status;     ///<T2コマンド応答の先頭ポインタ
     int32_t *pStatusSize;     ///<T2コマンド応答のサイズへのポインタ
 }CmdQueue_t;
 

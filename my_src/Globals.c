@@ -77,7 +77,7 @@ char    EntityTemp[ 200 ]        __attribute__((section(".xram")));     ///<  XM
 /// @attention 複数のスレッドから読み書きされるが 排他制御等していない
 char huge_buffer[32768]         __attribute__((section(".xram")));
 ///作業用バッファ
-char work_buffer[32768]         __attribute__((section(".xram")));
+char work_buffer[32768];//         __attribute__((section(".xram")));
 ///XML作業用バッファ
 char xml_buffer[32768*4]        __attribute__((section(".xram")));
 
@@ -90,7 +90,7 @@ char CertFile_WS[4096]          __attribute__((section(".xram")));
 ///証明書作業用バッファ
 char CertFile_USER[4096]        __attribute__((section(".xram")));
 ///グループバッファ
-char Group_Buffer[1024]         __attribute__((section(".xram")));
+//Not used char Group_Buffer[1024]         __attribute__((section(".xram")));
 
 
 

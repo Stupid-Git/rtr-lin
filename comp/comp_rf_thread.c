@@ -62,9 +62,8 @@ const uint8_t   TxLoop_Rpt = 32;                                    ///< [中継
 
 
 //通信バッファ
-static def_com RCOM;                        ///< RF通信用バッファ
-
-static int Rf_Sum_Crc;        //受信フレームがSUMの場合0 CRC16の場合1
+/*static*/ def_com RCOM;                        ///< RF通信用バッファ
+/*static*/ int Rf_Sum_Crc;        //受信フレームがSUMの場合0 CRC16の場合1
 
 static struct def_rssi{
     char rpt;
@@ -81,9 +80,6 @@ extern void StatusPrintfB(char *, char *, int);                         // 返�
 //プロトタイプ
 static void rf_delay(uint32_t wt);
 
-static void rfm_initialize(void);                                      // 無線モジュール 初期化
-static void rfm_reset(void);                                           // 無線モジュール リセット
-static void rfm_send(char *pData);
 static void TX_dummy(void);
 //未使用static uint8_t RET_set_command(uint8_t in_no);
 # if 0
@@ -93,7 +89,6 @@ static void rpt_backup_clr(void);
 static uint32_t write_ex_rx(void);
 #endif
 
-static uint8_t rfm_recv(uint32_t);                                 // 無線モジュール 受信
 
 static void rfm_power_on_initialize(void);                             // 無線モジュール電源ＯＮ時の初期化
 static void relay_initialize(uint8_t);                             // 無線モジュール 中継機エラー時の初期化
@@ -245,7 +240,7 @@ void rf_thread_entry(void)
             RF_buff.rf_res.time = 0;
             RF_buff.rf_req.cancel = 0;                          // キャンセル要求をクリアする
 
-            RF_CS_ACTIVE();                                     // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
+            hw_RF_CS_ACTIVE();                                     // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
             rf_delay(20);
 
             ERRORCODE.ACT0 = ERR(RF, NOERROR);
@@ -420,7 +415,8 @@ void rf_thread_entry(void)
                             break;
 
                         case RF_EVENT_EXECUTE:
-                            rtn = (uint8_t)AUTO_control(0); ///< @bug RF_EVENT_EXECUTEコマンドの返り値はREFUSEで良いのか？
+                            //TODO rtn = (uint8_t)AUTO_control(0); ///< @bug RF_EVENT_EXECUTEコマンドの返り値はREFUSEで良いのか？
+                            rtn = RFM_REFUSE; //TODO
                             break;  //2020.Feb.04追加
                         default:
                             rtn = RFM_REFUSE;
@@ -439,8 +435,8 @@ void rf_thread_entry(void)
                 RF_buff.rf_res.status = END_OK;
             }
 
- //           RF_CS_INACTIVE();
-            RF_RESET_INACTIVE();
+ //           hw_RF_CS_INACTIVE();
+            hw_RF_RESET_INACTIVE();
             Printf("    ==== g_rf_mutex put 3 !!\r\n");
             tx_mutex_put(&g_rf_mutex);
             Printf("\r\n #####  rf_thread suspend !!!!\r\n\r\n");
@@ -486,8 +482,8 @@ static void rfm_power_on_initialize(void)
     // Ｒ５００無線モジュールＥＥＰＲＯＭへ間欠受信間隔の設定を書き込み（３回リトライあり）
     for(i = 0; i < 3; i++)
     {
-        rfm_reset();                                        // 無線モジュール リセット
-        rfm_initialize();                                   // 無線モジュール アクティブ
+        hw_rfm_reset();                                        // 無線モジュール リセット
+        hw_rfm_initialize();                                   // 無線モジュール アクティブ
 /* デバッグ用
         if(RF_soh_command(0xd2) != RFM_NORMAL_END){
             continue;
@@ -512,7 +508,7 @@ static void rfm_power_on_initialize(void)
                     Printf(" Exec Boot Swap\r\n");
 
                     //ブートローダで起動しているのでブートスワップする
-                    rfm_cmd_SwapBoot();     //0xE1 リセット後ブートスワップされる
+                    //TODO rfm_cmd_SwapBoot();     //0xE1 リセット後ブートスワップされる
 
                     /*
                     if(RCOM.rxbuf.data[3] == 0)
@@ -579,7 +575,7 @@ static void rfm_power_on_initialize(void)
         rf_delay(5);
     }
 
-    RF_CS_INACTIVE();                                           // ＣＳ Ｌｏｗ（無線モジュール スタンバイ）
+    hw_RF_CS_INACTIVE();                                           // ＣＳ Ｌｏｗ（無線モジュール スタンバイ）
 
     rfm_country = (regf_rfm_serial_number != 0x00000000) ? ((regf_rfm_serial_number & 0xf0000000) >> 24) : ((fact_config.SerialNumber & 0xf0000000) >> 24); // エラーなら本体仕向先をセットする
     // ＤＥＢＵＧ
@@ -591,282 +587,12 @@ static void rfm_power_on_initialize(void)
 
 
 
-/**
- * 無線モジュール 初期化
- * @note ファイル内で使用
- * @note    2020.Aug.21 delay使用を廃止してthread_sleepに変更
- */
-static void rfm_initialize(void)
-{
-    RF_CS_ACTIVE();                                                  // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
-    tx_thread_sleep(7); //70ms
-    //osDelay(20);                                                // ＪＰ：６ｍｓ必要 ＵＳ：２～３ｍｓ必要
-/*    wait.ms_1.rf_wait = 20;
-    do{;}while(wait.ms_1.rf_wait!=0);
-
-    // 新ＲＦモジュールに必要
-    //osDelay(50);
-    wait.ms_1.rf_wait = 50;
-    do{;}while(wait.ms_1.rf_wait!=0);
-*/
-}
 
 
 
-/**
- * 無線モジュール リセット
- * @note    ファイル内で使用
- * @note    2020.Aug.21 delay使用を廃止してthread_sleepに変更
- */
-static void rfm_reset(void)
-{
-    RF_CS_ACTIVE();                                     // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
-
-    RF_RESET_ACTIVE();
-
-    tx_thread_sleep(1); //10ms
-
-    /*
-    wait.ms_1.rf_wait = 2;
-    do{;}while(wait.ms_1.rf_wait!=0);
-*/
-    RF_RESET_INACTIVE();
-    /*
-    wait.ms_1.rf_wait = 2;
-    do{;}while(wait.ms_1.rf_wait!=0);
-*/
-    tx_thread_sleep(1); //10ms
-}
-
-
-/**
- * 無線モジュール 送信
- * @param pData  送信データへのポインタ（SOH/STXヘッダへのポインタ）
- * @note    2020.Jul.03 SUM/CRC付加を内包
- * @note    2020.Jul.03  引数numを廃止
- */
-static void rfm_send(char *pData )
-{
-
-    uint16_t err;
-    uint32_t wt;
-    uint32_t i;
-    uint16_t num;
-/**/
-    // 途中でRFMとの通信を切断した時の、ゴミ処理
-    /*TODO
-    err = g_sf_comms5.p_api->close(g_sf_comms5.p_ctrl);
-    Printf("rfm_send com close %d \r\n", err);
-    err = g_sf_comms5.p_api->open(g_sf_comms5.p_ctrl, g_sf_comms5.p_cfg);
-    Printf("rfm_send com open %d \r\n", err);
-    TODO*/
-/**/
-// 2022.08.08 ↓ 無線通信はSUM計算固定
-    //if(0 == Rf_Sum_Crc){
-    //    num = calc_checksum((char *)pData);       //SUM計算、SUM付加
-    //}
-    //else{
-    //    num = calc_soh_crc((char *)pData);        //CRC計算、CRC付加
-    //}
-    Rf_Sum_Crc = 0;                         // SUM計算
-    num = calc_checksum((char *)pData);     //SUM計算、SUM付加
-// 2022.08.08 ↑
-
-    memset((char *)&RCOM.rxbuf.header, 0x00, 3);                        // 先頭の３バイトをクリア
-    RCOM.rxbuf.length = sizeof(RCOM.rxbuf.data) - 2;
-
-    Printf("rfm_send start\r\n");
-
-    for(i=0;i<num;i++){
-        Printf("%02X ", pData[i]);
-    }
-    Printf("\r\n");
-
-
-    // 1byte 520us  wait:10ms   19200bps
-    wt = (uint32_t)(((num * 1000) / 19200) + 1 + 1);
-    Printf("rfm_send wt %ld\r\n",wt);
-/*TODO
-    err = g_sf_comms5.p_api->lock(g_sf_comms5.p_ctrl, SF_COMMS_LOCK_TX, TX_WAIT_FOREVER);    //comm5ロック
-    err = g_sf_comms5.p_api->write(g_sf_comms5.p_ctrl, (uint8_t *)pData, num, wt);
-    g_sf_comms5.p_api->unlock(g_sf_comms5.p_ctrl, SF_COMMS_LOCK_TX);    //comm5ロック解除
-TODO*/
-    Printf("rfm_send %d(%d) wt:%d\r\n", err, num ,wt);
-}
 
 
 
-/**
- * 無線モジュール 受信
-
- * @param t タイムアウト時間［ｍｓ］
- * @return
- *         1byte 520us   19200bps  packet size max 7+64 = 71
- *         71byte 37 m
- *
- * @note    rf_buffer に受信し、RCOM.rxbufにコピーしている→廃止
- * @note    2020.Jul.06  rf_buffer廃止（受信バッファを一つにした）
- * @note    2020.Jul.06  commsドライバのキューの直接チェックを廃止
- * @note    2020.Aug.21 受信サイズ66Byte制限を外した
- * @note    2020.Aug.21 REFUS応答時、RFM_NORMAL_ENDで返っていた
- */
-static uint8_t rfm_recv(uint32_t t)
-{
-    uint32_t err;
-    uint16_t len;
-    uint8_t rtn = RFM_NORMAL_END;
-
-    uint32_t RfRxtimeout;
-
-
-    wait.rfm_comm = RfRxtimeout = (t == UINT32_MAX) ? 0 : (t / 10);    // 受信タイムアウトセット  10ms分解能
-
-//rfm_recv_init:
-    //err = g_sf_comms5.p_api->lock(g_sf_comms5.p_ctrl, SF_COMMS_LOCK_RX, TX_WAIT_FOREVER);    //comm5ロック
-
-    memset((char *)&RCOM.rxbuf.header, 0x00, 3);                    // 先頭の３バイトをクリア
-    RCOM.rxbuf.length = sizeof(RCOM.rxbuf.data) - 2;
-
-    Printf("[rfm_recv Start] (%ld)(%ld)\r\n", wait.rfm_comm,t);
-
-    // SOH 受信待ちループ
-    for(;;){
-
-        RCOM.rxbuf.header = 0x00;
-
-        if(RfRxtimeout == 0)    RfRxtimeout = 1;                // sakaguchi 2021.06.29 タイムアウトなし設定の場合、readタイムアウトは1(10ms)にする
-        /*TODO
-        err = g_sf_comms5.p_api->read(g_sf_comms5.p_ctrl, (uint8_t *)&RCOM.rxbuf.header, 1, RfRxtimeout); //1Byte受信 タイムアウト 10ms->ゆざー指定に変更
-
-        if(err == SSP_SUCCESS){
-            if(RCOM.rxbuf.header == CODE_SOH){
-                Printf("## rfm_recv SOH (%ld)\r\n", wait.rfm_comm);
-                break;
-            }
-        }else if(err == SSP_ERR_TIMEOUT)
-        {
-            rtn = RFM_SERIAL_TOUT;
-            goto exit_function;
-        }
-        TODO*/
-
-        if(t == UINT32_MAX){
-           if(timer.int1000 > RF_buff.rf_req.timeout_time)     // タイムアウトなし設定なら、無線コマンド全体のタイムアウトで戻る
-           {
-                rtn = RFM_DEADLINE;
-                goto exit_function;
-           }
-        }
-        else if(wait.rfm_comm == 0){
-            /*TODO
-            g_sf_comms5.p_api->close(g_sf_comms5.p_ctrl);
-            g_sf_comms5.p_api->open(g_sf_comms5.p_ctrl, g_sf_comms5.p_cfg);
-            TODO*/
-            Printf("RF Com Reboot \r\n");
-            rtn = RFM_SERIAL_TOUT;
-            goto exit_function;
-        }
-
-        if(RF_buff.rf_req.cancel == 1)                          // キャンセルフラグ
-        {
-            rtn = RFM_CANCEL;
-            goto exit_function;
-        }
-
-        if(wait.rfm_comm == 0){
-            rtn = RFM_SERIAL_TOUT;
-            goto exit_function;
-        }
-
-        tx_thread_sleep(5);
-
-    }//受信待ちループ
-
-    //SOH以降の残りバイト受信
-    Printf("\r\n## rfm_recv SOH OK (%ld)\r\n", wait.rfm_comm);
-
-    /*TODO
-    err = g_sf_comms5.p_api->read(g_sf_comms5.p_ctrl, (uint8_t *)&RCOM.rxbuf.command, 4, 3);    //commandからLengthまで4Byte受信 タイムアウト30ms→200ms→30ms
-    if(err != SSP_SUCCESS){
-        rtn = RFM_SERIAL_ERR2;
-        goto exit_function;
-    }
-    TODO*/
-
-    if(RCOM.rxbuf.length == 0){                                 // 2023.03.01 受信データ長が0の場合、エラーで終了
-        rtn = RFM_SERIAL_ERR2;
-        goto exit_function;
-    }
-
-    /*TODO
-    //66Byteの受信制限を外した 2020.Aug.01
-    err = g_sf_comms5.p_api->read(g_sf_comms5.p_ctrl, (uint8_t *)&RCOM.rxbuf.data, (uint32_t)(RCOM.rxbuf.length+2), 5);       //DATAからSUMまで受信 タイムアウト 50ms→200ms→50ms
-    if(err != SSP_SUCCESS){
-        rtn = RFM_SERIAL_ERR2;                                  // 2023.02.20 異常時の戻り値追加
-        goto exit_function;
-    }
-    TODO*/
-
-    len = (RCOM.rxbuf.length > 66) ? 66 :RCOM.rxbuf.length;     //デバッグ表示用の制限（コマンド本体は制限しない」）
-//    Printf("\r\n RF RX(%d) \r\n" , len );
-    Printf("RF RX\r\n%02X %02X %02X %04X ", RCOM.rxbuf.header, RCOM.rxbuf.command, RCOM.rxbuf.subcommand, RCOM.rxbuf.length);
-    for(int i=0;i<len + 2;i++){
-        Printf("%02X ", RCOM.rxbuf.data[i]);
-    }
-    Printf("\r\n");
-
-// 20200529_下記のコメントアウトを外した
-    if(timer.latch_enable == true)
-    {
-        timer.latch_enable = false;
-
-        timer.arrival = timer.int125;                           // 子機が応答した時間をラッチ
-        //timer.int125 = 0;                                     // ここでクリアするとリトライ時のTIMEパラメータ用のカウントに影響する
-    }
-// ここまで
-
-
-
-    RfCh_Status = CH_OK;                                            // sakaguchi UT-0035
-    Rf_Sum_Crc = judge_checksum(&RCOM.rxbuf.header);     //CRC受信はCRCで送信、SUM受信はSUMで送信するため保存しておく
-    if(Rf_Sum_Crc == -1)     //2020.Juｌ.03 CRC/SUM両対応
-    {
-        rtn = RFM_SERIAL_ERR;
-    }
-    else if(RCOM.rxbuf.subcommand == CODE_NAK){
-        rtn = RFM_R500_NAK;
-    }
-    else if(RCOM.rxbuf.subcommand == CODE_BUSY){
-        rtn = RFM_R500_BUSY;
-    }
-    else if(RCOM.rxbuf.subcommand == CODE_CH_BUSY){             // 無線モジュールからCH_BUSYを受信した    segi
-        LED_Set(LED_BUSY, LED_ON);      // ここでいいの？？？？
-        rtn = RFM_R500_CH_BUSY;
-        RfCh_Status = CH_BUSY;                                  // sakaguchi UT-0035
-        PutLog(LOG_RF, "Channel Busy");
-    }
-    else if(RCOM.rxbuf.subcommand == CODE_REFUSE){
-        rtn = RFM_REFUSE;      //仮      NOMAL_ENDが返っていた
-    }
-// 2024 01 15 D.00.03.184 ↓
-    else if(RCOM.rxbuf.subcommand == CODE_CRC){
-        rtn = RFM_R500_NAK;
-        PutLog(LOG_RF, "CRC Error");
-    }
-// 2024 01 15 D.00.03.184 ↑
-    else{
-        __NOP();        //ACK応答
-    }
-
-exit_function:;
-
-    //g_sf_comms5.p_api->unlock(g_sf_comms5.p_ctrl, SF_COMMS_LOCK_RX);    //comm5ロック解除
-
-    Printf("\r\n  rfm_recv rtn=%02X / %04X (%ld)\r\n", rtn, err,wait.rfm_comm );
-    return(rtn);
-
-
-}
 
 
 /**
@@ -881,8 +607,8 @@ static void relay_initialize(uint8_t num)
 
     for(i = 0; i < 3; i++)
     {
-        rfm_reset();
-        rfm_initialize();
+        hw_rfm_reset();
+        hw_rfm_initialize();
 
         // 間欠受信を許可
         if(RF_rxintt_stop(IT_PERMIT) != RFM_NORMAL_END) continue;
@@ -946,10 +672,10 @@ static uint8_t RF_rpt_batt_set(uint8_t past, uint8_t curr)
     RCOM.txbuf.data[2] = 0;
     RCOM.txbuf.data[3] = 0;
 
-    rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
 
-    return(rfm_recv(500));
+    return(hw_rfm_recv(500));
 }
 
 
@@ -972,9 +698,9 @@ static uint8_t RF_rxintt(uint8_t is)
     RCOM.txbuf.data[2] = 0;
     RCOM.txbuf.data[3] = 0;
 
-    rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    return(rfm_recv(500));      //無線モジュール受信
+    return(hw_rfm_recv(500));      //無線モジュール受信
 }
 
 
@@ -1001,9 +727,9 @@ static uint8_t RF_rxintt_stop(uint8_t is)
     RCOM.txbuf.data[2] = 0;
     RCOM.txbuf.data[3] = 0;
 
-    rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    return(rfm_recv(500));      //無線モジュール受信
+    return(hw_rfm_recv(500));      //無線モジュール受信
 }
 
 
@@ -1028,9 +754,9 @@ static uint8_t RF_group_id_set(uint8_t sw, uint8_t *id, uint8_t numb, uint8_t ba
     RCOM.txbuf.data[8] = numb;
     RCOM.txbuf.data[9] = (uint8_t)(freq + ((band & 0x07) << 5));           // bandは２＾０～２＾２使用
 
-    rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    return(rfm_recv(500));      //無線モジュール受信
+    return(hw_rfm_recv(500));      //無線モジュール受信
 }
 
 
@@ -1063,9 +789,9 @@ static uint8_t RF_soh_command(uint8_t cmd)
     RCOM.txbuf.data[2] = 0;
     RCOM.txbuf.data[3] = 0;
 
-    rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    return(rfm_recv(500));      //無線モジュール受信
+    return(hw_rfm_recv(500));      //無線モジュール受信
 }
 
 
@@ -1082,8 +808,8 @@ uint8_t RF_command_execute(uint8_t order)
 
 //----- 無線通信の失敗が連続する場合、念の為無線モジュールをリブートする 20200718 segi------------
     if(RF_Err_cnt > 5){
-        rfm_reset();
-        rfm_initialize();
+        hw_rfm_reset();
+        hw_rfm_initialize();
         RF_Err_cnt = 0;
         PutLog(LOG_RF, "RFM RESET");                // sakaguchi 2021.06.29
     }
@@ -1405,7 +1131,7 @@ static uint8_t R500_radio_communication_once(void)
     {
         if(r500.next_rpt != 0xff)                               // 中継機へ無線コマンドを送った場合
         {
-            if(rfm_recv(1400) == RFM_NORMAL_END)                // 次の中継機コマンドまたはダミー送信が受信できた場合は、中継機通信成功と見なす
+            if(hw_rfm_recv(1400) == RFM_NORMAL_END)                // 次の中継機コマンドまたはダミー送信が受信できた場合は、中継機通信成功と見なす
             {
                 if(RCOM.rxbuf.command == 0x42)
                 {
@@ -1432,7 +1158,7 @@ static uint8_t R500_radio_communication_once(void)
         // 末端中継機の場合、rx500_relay_proceed()でRF_buff.rf_res.timeにr500.time_cntを保存してある。親機の場合、RF_buff.rf_res.timeはゼロ
         // ここでは通信リトライがあるかもしれないのでRF_buff.rf_res.timeを変更してはいけない
 
-        timer.arrival = 0;                                      // 子機が応答したときまでの秒数ラッチを１回だけ許可する rfm_recv()でラッチ
+        timer.arrival = 0;                                      // 子機が応答したときまでの秒数ラッチを１回だけ許可する hw_rfm_recv()でラッチ
         timer.latch_enable = true;
 
         //Printf("R500_radio_communication_once 3 order %02X \r\n", order);
@@ -1563,7 +1289,7 @@ static uint8_t R500_radio_communication_once(void)
         ///__enable_irq();
 
 
-        *(uint16_t *)&r500.para2[0] = Conv125msec((uint16_t)(RF_buff.rf_res.time + timer.arrival));   // コマンド開始から子機が応答したときまでの秒数rfm_recv()でラッチ
+        *(uint16_t *)&r500.para2[0] = Conv125msec((uint16_t)(RF_buff.rf_res.time + timer.arrival));   // コマンド開始から子機が応答したときまでの秒数hw_rfm_recv()でラッチ
 //この部分が RTR500BCと違っている
         // RTR500BC r500.time_cnt = timer.int125;                           // 末端機に届いてＴコマンドになるまでの時間をカウント開始
         // RTR500BC if(my_rpt_number != 0) timer.int125 = 0;                // 自局が親機の場合はクリアしない（直接LASTパラメータになる）、末端中継機はr500.time_cntへ現在時を一旦格納、手前中継機への転送時間をカウントするためクリア
@@ -1676,7 +1402,7 @@ void RF_power_on_init(uint8_t sw)
 //      RF_full_moni_init();                                // モニタリング用テーブルの初期化       // 2020/08/24 sakaguchi del
     }
 
-    WR_clr();                                               // 警報条件記憶レジスタクリア
+   //TODO WR_clr();                                               // 警報条件記憶レジスタクリア
 
     // 警報メールフラグクリア(16bit対応済み)
     for(cnt = 0 ; cnt < 128 ; cnt++){                       //
@@ -1686,7 +1412,7 @@ void RF_power_on_init(uint8_t sw)
         memset(auto_control.w_config_back[cnt].now, 0x00, 6);           // sakaguchi 2021.03.09
     }
 
-    memset(retry_buff.download_buff[0].do_rpt, 0x00, sizeof(retry_buff));
+   //TODO memset(retry_buff.download_buff[0].do_rpt, 0x00, sizeof(retry_buff));
 
     ALM_bak_all_clr(100);
 
@@ -1855,18 +1581,18 @@ static uint8_t R500_send_recv(uint16_t t, uint8_t *buf)
     uint16_t i, busy;
 
     Printf("    R500_send_recv() t=%d \r\n", t);
-    /* rfm_send() に内包 2020.Jul.03
+    /* hw_rfm_send() に内包 2020.Jul.03
     calc_checksum_data(&r500.soh);
 */
-    rfm_send(&r500.soh);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&r500.soh);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    Printf("    R500_send_recv()  rfm_send  end \r\n");
+    Printf("    R500_send_recv()  hw_rfm_send  end \r\n");
     busy = 0;
     relay_rssi.level_0x34 = 0;
 
     while(1U)
     {
-        rtn = rfm_recv(t);
+        rtn = hw_rfm_recv(t);
         if(RCOM.rxbuf.command != 0x34){
             break;                   // 正常受付応答か？
         }
@@ -1939,7 +1665,7 @@ static uint8_t R500_send_recv(uint16_t t, uint8_t *buf)
 
             memcpy((char *)&RCOM.txbuf.data[2], (char *)&buf[64 * i], 64);      // 追加ブロック内容６４バイトをコピー
 
-            /* rfm_send() に内包 2020.Jul.03
+            /* hw_rfm_send() に内包 2020.Jul.03
             if(0 == Rf_Sum_Crc){
                 calc_checksum(&RCOM);       //SUM計算、SUM付加
             }
@@ -1947,7 +1673,7 @@ static uint8_t R500_send_recv(uint16_t t, uint8_t *buf)
                 calc_soh_crc(&RCOM);        //CRC計算、CRC付加
             }
             */
-            rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+            hw_rfm_send(&RCOM.txbuf.header);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
             if(((r500.rf_cmd2 & 0x7f) == 0x66) && (r500.next_rpt == 0xff)){
                 return(RFM_NORMAL_END);  // グループ一斉記録開始コマンドで中継機無しの場合、応答を待たないでリターン
@@ -1956,8 +1682,8 @@ static uint8_t R500_send_recv(uint16_t t, uint8_t *buf)
             recv_0x33response:;
 
             // ＤＥＢＵＧ
-            //if(rfm_recv(3200) == RFM_SERIAL_TOUT) return(RFM_SERIAL_TOUT);
-            if(rfm_recv(6000) == RFM_SERIAL_TOUT){
+            //if(hw_rfm_recv(3200) == RFM_SERIAL_TOUT) return(RFM_SERIAL_TOUT);
+            if(hw_rfm_recv(6000) == RFM_SERIAL_TOUT){
                 return(RFM_SERIAL_TOUT);
             }
 
@@ -2039,7 +1765,7 @@ static uint8_t R500_koki_real_scan_reply(void)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
 
         if((RCOM.rxbuf.command == 0x34) && (rtn == RFM_R500_CH_BUSY)){
             return(rtn);  // チャンネルビジーならリターン
@@ -2139,7 +1865,7 @@ static uint8_t R500_koki_whole_scan_reply(void)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
 
         if((RCOM.rxbuf.command == 0x34) && (rtn == RFM_R500_CH_BUSY))
 //          break;
@@ -2228,7 +1954,7 @@ static uint8_t R500_koki_present_data_reply(void)
 //            return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
 
         //Printf("R500_koki_present_data_reply 1 %d \r\n" ,rtn);
 
@@ -2304,7 +2030,7 @@ static uint8_t R500_koki_setting_data_reply(void)
         if(RF_buff.rf_req.cancel == 1U){
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
-        rtn = rfm_recv(3200);                                   // R500の応答受信
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信
         //Printf("R500_koki_setting_data_reply 1 %d %02X %02X\r\n" ,rtn, RCOM.rxbuf.command, RCOM.rxbuf.subcommand);
 
         //if(RCOM.rxbuf.subcommand == RFM_R500_BUSY){
@@ -2352,7 +2078,7 @@ static uint8_t R500_koki_setting_data_reply(void)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(4000);                                   // R500の応答受信
+        rtn = hw_rfm_recv(4000);                                   // R500の応答受信
 
         //Printf("R500_koki_setting_data_reply 3 %d at=%d i=%d\r\n" ,rtn, at, i);
 
@@ -2431,7 +2157,7 @@ static uint8_t R500_koki_upload_data_reply(void)
 //            return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(4000);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６４バイト）
+        rtn = hw_rfm_recv(4000);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６４バイト）
 
 //      if(rtn == 0xf0){
 //          rtn = 0;
@@ -2490,7 +2216,7 @@ static uint8_t R500_koki_record_stop_reply(void)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(4000);                                   // R500の応答受信（コマンド０ｘ３４、ＡＣＫ／ＢＵＳＹ）
+        rtn = hw_rfm_recv(4000);                                   // R500の応答受信（コマンド０ｘ３４、ＡＣＫ／ＢＵＳＹ）
 
         if(rtn == RFM_R500_BUSY){
             continue;
@@ -2568,7 +2294,7 @@ static uint8_t R500_relay_reply(uint8_t order)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(PERMANENT_WAIT);                         // シリアル受信のタイムアウトは無し
+        rtn = hw_rfm_recv(PERMANENT_WAIT);                         // シリアル受信のタイムアウトは無し
 
         if(rtn == RFM_DEADLINE){
             return(RFM_DEADLINE);           // 無線コマンド終了の締め切り時間切れならエラー終了
@@ -2666,8 +2392,8 @@ static uint8_t R500_relay_reply(uint8_t order)
         }
 
         // ＤＥＢＵＧ １．０５
-        //rtn = rfm_recv(3200);                                 // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
-        rtn = rfm_recv(6000);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        //rtn = hw_rfm_recv(3200);                                 // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(6000);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
 
         if(rtn == RFM_R500_BUSY){
             continue;
@@ -2752,7 +2478,7 @@ static uint8_t R500_relay_rf_scan_reply(uint8_t order)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
         if(rtn == RFM_LOW_BATT){
             return(rtn);
         }
@@ -2930,7 +2656,7 @@ static uint8_t rxOukagai_M(void)
             return(RFM_CANCEL);     // 途中キャンセル要求があった場合
         }
 
-        rtn = rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
+        rtn = hw_rfm_recv(3200);                                   // R500の応答受信（コマンド０ｘ３３、ＡＣＫ／ＢＵＳＹ、６６バイト）
 
         if(rtn == RFM_R500_BUSY){
             continue;
@@ -3091,8 +2817,8 @@ static uint8_t rx500_relay_comm_recv(uint8_t *buf)
         }
 
         // ＤＥＢＵＧ １．０５
-        //rtn = rfm_recv(4000);
-        rtn = rfm_recv(6000);
+        //rtn = hw_rfm_recv(4000);
+        rtn = hw_rfm_recv(6000);
 
         if(rtn == RFM_R500_BUSY){
             continue;
@@ -3147,13 +2873,13 @@ static void TX_dummy(void)
     r500_backup.rf_cmd2 = 0x01;                                 // 無線コマンドは親機へのキャンセルお伺いコマンドにしておく
     r500_backup.node = 0xFF;                                    // 子機番号
     r500_backup.rssi = 0x00;
-    /* rfm_send() に内包 2020.Jul.03
+    /* hw_rfm_send() に内包 2020.Jul.03
     calc_checksum_data(&r500_backup.soh);
     */
-    rfm_send(&r500_backup.soh);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(&r500_backup.soh);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
-    rfm_recv(200);
-    rfm_recv(2000);
+    hw_rfm_recv(200);
+    hw_rfm_recv(2000);
 }
 
 
@@ -3316,7 +3042,7 @@ static uint8_t tx500_com_loop(uint8_t *buf)
 
         if(rtn != RFM_SERIAL_TOUT)
         {
-            if(rfm_recv(1400) == RFM_NORMAL_END)                // 次の中継機コマンドまたはダミー送信が受信できた場合は、中継機通信成功と見なす
+            if(hw_rfm_recv(1400) == RFM_NORMAL_END)                // 次の中継機コマンドまたはダミー送信が受信できた場合は、中継機通信成功と見なす
             {
                 if(RCOM.rxbuf.command == 0x42)
                 {
@@ -3349,7 +3075,7 @@ static uint8_t tx500_com_loop(uint8_t *buf)
         if(rtn == RFM_R500_BUSY)                                // 無線モジュールを初期化する（無線モジュールがＢｕｓｙ応答中だと、初期化してＣＳ Ｌｏｗにしないと電波が出ない）
         {
             relay_initialize(my_rpt_number);
-            RF_CS_ACTIVE();
+            hw_RF_CS_ACTIVE();
         }
 
         if(rfm_country == DST_JP){
@@ -3689,13 +3415,13 @@ uint32_t R500C_Direct(int mode, int time, char *pData)
 
     uint32_t    Err;
 
-    RF_CS_ACTIVE();                                       // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
+    hw_RF_CS_ACTIVE();                                       // ＣＳ Ｌｏｗ（無線モジュール アクティブ）
     rf_delay(20);
 
-    rfm_send(pData);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
+    hw_rfm_send(pData);        //無線モジュール SOH/STXフレーム送信（SUM/CRC自動付加）
 
 
-    if(rfm_recv((uint32_t)time) == RFM_NORMAL_END)
+    if(hw_rfm_recv((uint32_t)time) == RFM_NORMAL_END)
     {
         StatusPrintfB("DATA", (char *)&RCOM.rxbuf.header, RCOM.rxbuf.length + 5);   // チェックサム部は送らない
         Err = ERR(RF,NOERROR);
@@ -3704,45 +3430,8 @@ uint32_t R500C_Direct(int mode, int time, char *pData)
       Err = ERR(RF, OTHER_ERR);
     }
 
-    //RF_CS_INACTIVE;
+    //hw_RF_CS_INACTIVE;
 
     return (Err);
-}
-
-/**
- * @brief   無線モジュールのビジー状態をチェックする
- * 無線モジュールが通信中かどうかチェックする
- * @return  1 = BUSY
- * @note    未使用
- */
-int Chreck_RFM_Busy(void)
-{
-    return 0;
-    /*TODO
-    ioport_level_t level;
-    g_ioport.p_api->pinRead(RFM_BUSY_PORT, &level);
-    if(level == IOPORT_LEVEL_LOW){
-        return (1);
-    }
-    else {
-        return(0);
-    }
-    TODO*/
- }
-
-/**
- * @brief   無線モジュールのステータスをチェックする
- * @return  1 = module受信動作中
- * @note   通常ポートは  OD出力ポート設定
- * @note    未使用
- */
-int Chreck_RFM_Status(void)
-{
-    return 0;
-    /*TODO
-    ioport_level_t level;
-    g_ioport.p_api->pinRead(RFM_RESET_PORT, &level);
-    return (level);
-    TODO*/
 }
 

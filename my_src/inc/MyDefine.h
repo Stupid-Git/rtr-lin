@@ -149,10 +149,10 @@ typedef enum{
 
 
 
-#define RF_CS_ACTIVE        g_ioport.p_api->pinWrite(RF_CS, IOPORT_LEVEL_LOW)
-#define RF_CS_INACTIVE      g_ioport.p_api->pinWrite(RF_CS, IOPORT_LEVEL_HIGH)
-#define RF_RESET_ACTIVE     g_ioport.p_api->pinWrite(RF_RESET, IOPORT_LEVEL_LOW)
-#define RF_RESET_INACTIVE   g_ioport.p_api->pinWrite(RF_RESET, IOPORT_LEVEL_HIGH)
+#define hw_RF_CS_ACTIVE        g_ioport.p_api->pinWrite(RF_CS, IOPORT_LEVEL_LOW)
+#define hw_RF_CS_INACTIVE      g_ioport.p_api->pinWrite(RF_CS, IOPORT_LEVEL_HIGH)
+#define hw_RF_RESET_ACTIVE     g_ioport.p_api->pinWrite(RF_RESET, IOPORT_LEVEL_LOW)
+#define hw_RF_RESET_INACTIVE   g_ioport.p_api->pinWrite(RF_RESET, IOPORT_LEVEL_HIGH)
 #endif
 
 #define EX_WRAN_ON          printf("TODO EX_WRAN_ON\n") //g_ioport.p_api->pinWrite(IOPORT_PORT_00_PIN_14, IOPORT_LEVEL_LOW)
