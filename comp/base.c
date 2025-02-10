@@ -204,7 +204,7 @@ void rewrite_settings(void)
         //serial_flash_sector_erase(SFM_CONFIG_START + SFM_CONFIG_SECT);                                                                                  // オリジナル域消去
 
         //serial_flash_multbyte_write(SFM_CONFIG_START, SFM_CONFIG_SIZE, (char *)&my_config);  // デフォルト値書き込み
-        file_store__my_config_b();
+        file_store__my_config();
 
         #if 0
         for(i = 0; i < SFM_CONFIG_SIZE; i += 256) {

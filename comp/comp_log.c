@@ -42,26 +42,63 @@ pthread_mutex_t mutex_sfmem;
 
 extern uint8_t log_data[SFM_LOG_SIZE];
 extern uint8_t td_log_data[SFM_TD_LOG_SIZE];
-int file_log_file_read(uint32_t adr, int len, uint8_t * dst);
-int file_log_file_read(uint32_t adr, int len, uint8_t * dst)
-{
-	int rtn = 0;
-	int index;
 
-	if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
-	{
-		// read the file
-		index = adr - SFM_LOG_START;
-		memcpy(dst, &log_data[index], len);
-	}
-	else //TD_LOG
-	{
-		// read the file
-		index = adr - SFM_TD_LOG_START;
-		memcpy(dst, &td_log_data[index], len);
-	}
+int file_log_file_ADDR_CHECK(uint32_t adr);
+int file_log_file_ADDR_CHECK(uint32_t adr)
+{
+    int rtn = 0;
+    int index;
+
+    rtn = -1; // Assume NG
+    if( (adr >= SFM_LOG_START) && (adr < SFM_LOG_START + SFM_LOG_SIZE))
+    {
+        index = adr - SFM_LOG_START;
+        if((index >= 0) & (index < SFM_LOG_SIZE )) {
+            rtn = 0;
+        }
+    }
+    if( (adr >= SFM_TD_LOG_START) && (adr < SFM_TD_LOG_START + SFM_TD_LOG_SIZE))
+    {
+        index = adr - SFM_TD_LOG_START;
+        if((index >= 0) & (index < SFM_TD_LOG_SIZE )) {
+            rtn = 0;
+        }
+    }
+
+    if(rtn != 0)
+    {
+    	perror("log file address error");
+    }
+
+    return rtn;
+}
+
+int file_log_file_read(uint32_t adr, int len, uint8_t * dst);
+int file_log_file_read(uint32_t adr, int len, uint8_t *dst)
+{
+    int rtn = 0;
+    int index;
+
+    rtn = file_log_file_ADDR_CHECK(adr);
+    if(rtn != 0)
+        return rtn;
+
+    if((adr >= SFM_LOG_START ) && (adr < SFM_TD_LOG_START )) {
+        // read the file
+        int file_load__log();
+        file_load__log();
+        index = adr - SFM_LOG_START;
+        memcpy(dst, &log_data[index], len);
+    } else //TD_LOG
+    {
+        // read the file
+        int file_load__td_log();
+        file_load__td_log();
+        index = adr - SFM_TD_LOG_START;
+        memcpy(dst, &td_log_data[index], len);
+    }
 //printf("file_log_file_read idx = %d, len = %d data = 0x%02x\n", index, len, dst[0]);
-	return rtn;
+    return rtn;
 }
 
 //serial_flash_multbyte_write(SFM_LOG_START + LogInfo.pWrite, 128, (char *)&LogLine);
@@ -73,7 +110,11 @@ int file_log_file_write(uint32_t adr, int len, char * src)
 	int rtn = 0;
 	int index;
 
-	if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
+    rtn = file_log_file_ADDR_CHECK(adr);
+    if(rtn != 0)
+        return rtn;
+
+    if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
 	{
 		index = adr - SFM_LOG_START;
 		memcpy(&log_data[index], src, len);
@@ -86,6 +127,8 @@ int file_log_file_write(uint32_t adr, int len, char * src)
 		index = adr - SFM_TD_LOG_START;
 		memcpy(&td_log_data[index], src, len);
 		// write the file
+        int file_store__td_log();
+        file_store__td_log();
 	}
 
 	return rtn;
@@ -98,7 +141,11 @@ int file_log_file_clear(uint32_t adr)
 	int index;
 	int len;
 
-	if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
+    rtn = file_log_file_ADDR_CHECK(adr);
+    if(rtn != 0)
+        return rtn;
+
+    if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
 	{
 		index = adr - SFM_LOG_START;
 		len = SFM_LOG_SIZE;
@@ -113,6 +160,8 @@ int file_log_file_clear(uint32_t adr)
 		len = SFM_TD_LOG_SIZE;
 		memset(&log_data[index], 0xFF, len);
 		// write the file
+        int file_store__td_log();
+        file_store__td_log();
 	}
 
 	return rtn;
@@ -126,7 +175,11 @@ int file_log_file_clear_4Kblock(uint32_t adr)
 	int index;
 	int len;
 
-	if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
+    rtn = file_log_file_ADDR_CHECK(adr);
+    if(rtn != 0)
+        return rtn;
+
+    if( (adr >= SFM_LOG_START) && (adr < SFM_TD_LOG_START))
 	{
 		index = adr - SFM_LOG_START;
 		len = 4096;
@@ -141,6 +194,8 @@ int file_log_file_clear_4Kblock(uint32_t adr)
 		len = 4096;
 		memset(&log_data[index], 0xFF, len);
 		// write the file
+        int file_store__td_log();
+        file_store__td_log();
 	}
 
 	return rtn;

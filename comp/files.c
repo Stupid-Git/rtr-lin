@@ -45,7 +45,6 @@ uint8_t CertFile_USER[4096];
 
 void file_struct_info(void)
 {
-
 	printf("fact_config     size = %ld\n", sizeof(fact_config));
 	printf("my_config       size = %ld\n", sizeof(my_config));
 	printf("group_data      size = %ld\n", sizeof(group_data));
@@ -62,75 +61,50 @@ void file_struct_info(void)
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-int file_make_if_not_exist__my_config();
-int file_make_if_not_exist__my_config()
+int file_make_if_not_exist__my_config(void);
+int file_store__my_config(void);
+int file_load__my_config(void);
+
+int file_make_if_not_exist__my_config(void)
 {
     FILE* file;
-    // open the file in rb mode
     file = fopen("config_data.bin", "rb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
-        //return 1;
-
         file = fopen("config_data.bin", "wb");
         if (file == NULL) {
             perror("Error creating file");
             return 1;
         }
-
-        memset(&my_config, 0, sizeof(my_config));
-        //strcpy(my_config.device.Name, "FRED");
-
+        memset(&my_config, 0xff, sizeof(my_config));
         fwrite((char*)&my_config, sizeof(my_config), 1, file );
-
         fclose( file);
     }
-
     return 0;
 }
 
-int file_store__my_config();
-int file_store__my_config()
+int file_store__my_config(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("config_data.bin", "wb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fwrite(&my_config, sizeof(my_config), 1, file);
-
-    // close the file
     fclose(file);
-
     return 0;
 }
 
 
-int file_load__my_config();
-int file_load__my_config()
+int file_load__my_config(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("config_data.bin", "rb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fread(&my_config, sizeof(my_config), 1, file);
-
-    // Process the read data (e.g., print or manipulate)
-    printf("Device Name = %s\n", my_config.device.Name);
-    // close the file
     fclose(file);
-
     return 0;
 }
 
@@ -138,155 +112,164 @@ int file_load__my_config()
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-int file_make_if_not_exist__my_config_b();
-int file_make_if_not_exist__my_config_b()
+int file_make_if_not_exist__my_config_b(void);
+int file_store__my_config_b(void);
+int file_load__my_config_b(void);
+
+int file_make_if_not_exist__my_config_b(void)
 {
     FILE* file;
-    // open the file in rb mode
     file = fopen("config_b_data.bin", "rb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
-        //return 1;
-
         file = fopen("config_b_data.bin", "wb");
         if (file == NULL) {
             perror("Error creating file");
             return 1;
         }
-
-        memset(&my_config, 0, sizeof(my_config));
-        //strcpy(my_config.device.Name, "FRED");
-
+        memset(&my_config, 0xFF, sizeof(my_config));
         fwrite((char*)&my_config, sizeof(my_config), 1, file );
-
         fclose( file);
     }
-
     return 0;
 }
 
-int file_store__my_config_b();
-int file_store__my_config_b()
+int file_store__my_config_b(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("config_b_data.bin", "wb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fwrite(&my_config, sizeof(my_config), 1, file);
-
-    // close the file
     fclose(file);
-
     return 0;
 }
 
 
-int file_load__my_config_b();
-int file_load__my_config_b()
+int file_load__my_config_b(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("config_b_data.bin", "rb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fread(&my_config, sizeof(my_config), 1, file);
-
-    // Process the read data (e.g., print or manipulate)
-    printf("Device Name = %s\n", my_config.device.Name);
-    // close the file
     fclose(file);
-
     return 0;
 }
-
 
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-int file_make_if_not_exist__log();
-int file_make_if_not_exist__log()
-{
-	FILE* file;
-    // open the file in rb mode
-    file = fopen("log_data.bin", "rb");
+int file_make_if_not_exist__log(void);
+int file_store__log(void);
+int file_load__log(void);
 
-    // check if the file was successfully opened
+int file_make_if_not_exist__log(void)
+{
+    FILE* file;
+    file = fopen("log_data.bin", "rb");
     if (file == NULL) {
         perror("Error opening file");
-        //return 1;
 
         file = fopen("log_data.bin", "wb");
         if (file == NULL) {
             perror("Error creating file");
             return 1;
         }
-
         memset(log_data, 0xFF, sizeof(log_data));
-
         fwrite((char*)&log_data, sizeof(log_data), 1, file );
-
         fclose( file);
     }
-
     return 0;
 }
 
-int file_store__log();
-int file_store__log()
+int file_store__log(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("log_data.bin", "wb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fwrite(&log_data, sizeof(log_data), 1, file);
-
-    // close the file
     fclose(file);
-
     return 0;
 }
 
-int file_load__log();
-int file_load__log()
+int file_load__log(void)
 {
-    // open the file in rb mode
     FILE* file = fopen("log_data.bin", "rb");
-
-    // check if the file was successfully opened
     if (file == NULL) {
         perror("Error opening file");
         return 1;
     }
-
     fread(&log_data, sizeof(log_data), 1, file);
-
-    // close the file
     fclose(file);
-
     return 0;
 }
+
+
 
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-int file_make_if_not_exist__registry();
-int file_make_if_not_exist__registry()
+int file_make_if_not_exist__td_log(void);
+int file_store__td_log(void);
+int file_load__td_log(void);
+
+int file_make_if_not_exist__td_log(void)
+{
+    FILE* file;
+    file = fopen("td_log_data.bin", "rb");
+    if (file == NULL) {
+        perror("Error opening file");
+
+        file = fopen("td_log_data.bin", "wb");
+        if (file == NULL) {
+            perror("Error creating file");
+            return 1;
+        }
+        memset(td_log_data, 0xFF, sizeof(td_log_data));
+        fwrite((char*)&td_log_data, sizeof(td_log_data), 1, file );
+        fclose( file);
+    }
+    return 0;
+}
+
+int file_store__td_log(void)
+{
+    FILE* file = fopen("td_log_data.bin", "wb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+    fwrite(&td_log_data, sizeof(td_log_data), 1, file);
+    fclose(file);
+    return 0;
+}
+
+int file_load__td_log(void)
+{
+    FILE* file = fopen("td_log_data.bin", "rb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+    fread(&td_log_data, sizeof(td_log_data), 1, file);
+    fclose(file);
+    return 0;
+}
+
+
+//-----------------------------------------------------------------------------
+//
+//-----------------------------------------------------------------------------
+int file_make_if_not_exist__registry(void);
+int file_store__registry(void);
+int file_load__registry(void);
+
+int file_make_if_not_exist__registry(void)
 {
     FILE* file;
     // open the file in rb mode
@@ -307,8 +290,7 @@ int file_make_if_not_exist__registry()
     return 0;
 }
 
-int file_store__registry();
-int file_store__registry()
+int file_store__registry(void)
 {
     // open the file in rb mode
     FILE* file = fopen("regist_data.bin", "wb");
@@ -324,8 +306,7 @@ int file_store__registry()
     return 0;
 }
 
-int file_load__registry();
-int file_load__registry()
+int file_load__registry(void)
 {
     // open the file in rb mode
     FILE* file = fopen("regist_data.bin", "rb");
@@ -344,8 +325,11 @@ int file_load__registry()
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-int file_make_if_not_exist__group();
-int file_make_if_not_exist__group()
+int file_make_if_not_exist__group(void);
+int file_store__group(void);
+int file_load__group(void);
+
+int file_make_if_not_exist__group(void)
 {
     FILE* file;
     // open the file in rb mode
@@ -366,8 +350,7 @@ int file_make_if_not_exist__group()
     return 0;
 }
 
-int file_store__group();
-int file_store__group()
+int file_store__group(void)
 {
     // open the file in rb mode
     FILE* file = fopen("group_data.bin", "wb");
@@ -383,8 +366,7 @@ int file_store__group()
     return 0;
 }
 
-int file_load__group();
-int file_load__group()
+int file_load__group(void)
 {
     // open the file in rb mode
     FILE* file = fopen("group_data.bin", "rb");
@@ -403,6 +385,11 @@ int file_load__group()
 //=============================================================================
 #define INIT_ALL 1
 void my_config_file_dummy(void);
+void log_file_dummy(void);
+void td_log_file_dummy(void);
+void registry_file_dummy(void);
+void group_file_dummy(void);
+
 void my_config_file_dummy(void)
 {
     file_make_if_not_exist__my_config_b();
@@ -421,7 +408,6 @@ void my_config_file_dummy(void)
 #endif
 }
 
-void log_file_dummy(void);
 void log_file_dummy(void)
 {
     file_make_if_not_exist__log();
@@ -429,7 +415,13 @@ void log_file_dummy(void)
     file_store__log();
 }
 
-void registry_file_dummy(void);
+void td_log_file_dummy(void)
+{
+    file_make_if_not_exist__td_log();
+    file_load__td_log();
+    file_store__td_log();
+}
+
 void registry_file_dummy(void)
 {
     file_make_if_not_exist__registry();
@@ -450,7 +442,6 @@ void registry_file_dummy(void)
 #endif
 }
 
-void group_file_dummy(void);
 void group_file_dummy(void)
 {
     file_make_if_not_exist__group();
@@ -461,5 +452,26 @@ void group_file_dummy(void)
 
     file_store__group();
 #endif
+}
+
+void files_load_and_or_init(void)
+{
+    void file_struct_info(void);
+    file_struct_info();
+
+    void my_config_file_dummy(void);
+    my_config_file_dummy();
+
+    void log_file_dummy(void);
+    log_file_dummy();
+
+    void td_log_file_dummy(void);
+    td_log_file_dummy();
+
+    void registry_file_dummy(void);
+    registry_file_dummy();
+
+    void group_file_dummy(void);
+    group_file_dummy();
 }
 

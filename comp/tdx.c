@@ -10,7 +10,12 @@
 #include <errno.h>
 #include <unistd.h>
 
-
+/*
+ * Other Shared memory info
+ * How to Set up Shared Memory in Your Linux and MacOS Programs. (shmget, shmat, shmdt, shmctl, ftok)
+ *   https://www.youtube.com/watch?v=WgVSq-sgHOc&ab_channel=JacobSorber
+ *
+ */
 
 //=============================================================================
 //

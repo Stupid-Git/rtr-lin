@@ -19,25 +19,38 @@ int main(void)
 {
 	puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
 
-	int libCurlTest_main(void);
+	int acm0_main(void);
+	acm0_main();
+    return 0;
+
+    void files_load_and_or_init(void);
+    files_load_and_or_init();
+    return 0;
+
+    int libCurlTest_main(void);
 	libCurlTest_main();
 	return 0;
+/*
+!!!Hello World!!!
+fact_config     size = 256
+my_config       size = 8192
+group_data      size = 4096
+regist_data     size = 32768
+temp_data       size = 65536
+CertFile_WS_1   size = 4096
+CertFile_USER_1 size = 4096
+log_data        size = 131072
+td_log_data     size = 262144
+SN: 5(05)
 
-	void file_struct_info(void);
-	file_struct_info();
+BaseName = RTR500BW_5F580123
 
-    void my_config_file_dummy(void);
-    my_config_file_dummy();
+rewrite_settings()
 
-    void log_file_dummy(void);
-	log_file_dummy();
+my_config crc 969429AC
 
-    void registry_file_dummy(void);
-    registry_file_dummy();
-
-    void group_file_dummy(void);
-    group_file_dummy();
-
+rewrite_settings() Exec End
+*/
 
 
 	/*
